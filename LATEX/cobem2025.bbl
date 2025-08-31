@@ -1,0 +1,69 @@
+\begin{thebibliography}{8}
+\newcommand{\enquote}[1]{``#1''}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\providecommand{\urlprefix}{URL }
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi:\discretionary{}{}{}#1}\else
+  \providecommand{\doi}{doi:\discretionary{}{}{}\begingroup
+  \urlstyle{rm}\Url}\fi
+
+\bibitem[{Bergstra and Bengio(2012)}]{Bergstra2012}
+Bergstra, J. and Bengio, Y., 2012.
+\newblock \enquote{Random search for hyper-parameter optimization}.
+\newblock \emph{Journal of Machine Learning Research}, Vol.~13, No. Feb, pp.
+  281--305.
+
+\bibitem[{Blank and Deb(2020)}]{pymoo}
+Blank, J. and Deb, K., 2020.
+\newblock \enquote{pymoo: Multi-objective optimization in python}.
+\newblock \emph{IEEE Access}, Vol.~8, pp. 89497--89509.
+
+\bibitem[{Cailler \emph{et~al.}(2020)Cailler, Darabiha and
+  Fiorina}]{Cailler2020}
+Cailler, M., Darabiha, N. and Fiorina, B., 2020.
+\newblock \enquote{Development of a virtual optimized chemistry method.
+  application to hydrocarbon/air combustion}.
+\newblock \emph{Combustion and Flame}, Vol. 211, pp. 281--302.
+
+\bibitem[{Deb and Jain(2014)}]{Deb2014}
+Deb, K. and Jain, H., 2014.
+\newblock \enquote{An evolutionary many-objective optimization algorithm using
+  reference-point-based nondominated sorting approach, part i: Solving problems
+  with box constraints}.
+\newblock \emph{IEEE Transactions on Evolutionary Computation}, Vol.~18, No.~4,
+  pp. 577--601.
+
+\bibitem[{Kennedy and Eberhart(1995)}]{Kennedy1995}
+Kennedy, J. and Eberhart, R., 1995.
+\newblock \enquote{Particle swarm optimization}.
+\newblock In \emph{Proceedings of the IEEE International Conference on Neural
+  Networks}. IEEE, Perth, Australia, Vol.~4, pp. 1942--1948.
+
+\bibitem[{McKay \emph{et~al.}(1979)McKay, Beckman and Conover}]{McKay1979}
+McKay, M.D., Beckman, R.J. and Conover, W.J., 1979.
+\newblock \enquote{A comparison of three methods for selecting values of input
+  variables in the analysis of output from a computer code}.
+\newblock \emph{Technometrics}, Vol.~21, No.~2, pp. 239--245.
+
+\bibitem[{Moritz \emph{et~al.}(2018)Moritz, Nishihara, Wang, Tumanov, Liaw,
+  Liang, Elibol, Yang, Paul, Jordan and Stoica}]{Ray2018}
+Moritz, P., Nishihara, R., Wang, S., Tumanov, A., Liaw, R., Liang, E., Elibol,
+  M., Yang, Z., Paul, W., Jordan, M.I. and Stoica, I., 2018.
+\newblock \enquote{Ray: A distributed framework for emerging ai applications}.
+\newblock In \emph{13th USENIX Symposium on Operating Systems Design and
+  Implementation (OSDI 18)}. USENIX Association, Carlsbad, CA, USA, pp.
+  561--577.
+
+\bibitem[{Smith \emph{et~al.}(1999)Smith, Golden, Frenklach, Moriarty,
+  Eiteneer, Goldenberg, Bowman, Hanson, Song, Gardiner, Lissianski and
+  Qin}]{GRIMech30}
+Smith, G.P., Golden, D.M., Frenklach, M., Moriarty, N.W., Eiteneer, B.,
+  Goldenberg, M., Bowman, C.T., Hanson, R.K., Song, S., Gardiner, W.C.J.,
+  Lissianski, V.V. and Qin, Z., 1999.
+\newblock \enquote{Gri-mech 3.0: An optimized detailed chemical reaction
+  mechanism for methane combustion}.
+\newblock http://combustion.berkeley.edu/gri-mech/version30/text30.html.
+  Accessed 01 Jun 2025.
+
+\end{thebibliography}
