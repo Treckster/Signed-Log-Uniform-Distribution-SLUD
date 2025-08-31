@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.6.28)  20 AUG 2025 10:32
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.6.28)  31 AUG 2025 17:40
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -239,7 +239,7 @@ Underfull \vbox (badness 10000) has occurred while \output is active []
  [1
 
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc} <./cabecalho-eps-converted-to.pdf>]
-LaTeX Font Info:    Trying to load font information for T1+phv on input line 116.
+LaTeX Font Info:    Trying to load font information for T1+phv on input line 107.
  (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2020/03/25 scalable font definitions for T1/phv.
 )
@@ -251,10 +251,23 @@ Package fancyhdr Warning: \headheight is too small (14.22636pt):
 (fancyhdr)                \addtolength{\topmargin}{-4.00764pt}.
 
 [2]
+<dists_example.png, id=31, 497.9403pt x 498.1812pt>
+File: dists_example.png Graphic file (type png)
+<use dists_example.png>
+Package pdftex.def Info: dists_example.png  used on input line 123.
+(pdftex.def)             Requested size: 232.17241pt x 232.28279pt.
+<dists_example_semilogy.png, id=33, 503.481pt x 498.1812pt>
+File: dists_example_semilogy.png Graphic file (type png)
+<use dists_example_semilogy.png>
+Package pdftex.def Info: dists_example_semilogy.png  used on input line 127.
+(pdftex.def)             Requested size: 232.17241pt x 229.72865pt.
+
+Underfull \vbox (badness 4765) has occurred while \output is active []
+
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <8> on input line 187.
+(Font)              <8> on input line 147.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <6> on input line 187.
+(Font)              <6> on input line 147.
 
 
 Package fancyhdr Warning: \headheight is too small (14.22636pt): 
@@ -263,10 +276,7 @@ Package fancyhdr Warning: \headheight is too small (14.22636pt):
 (fancyhdr)                You might also make \topmargin smaller to compensate:
 (fancyhdr)                \addtolength{\topmargin}{-5.11366pt}.
 
-[3]
-Underfull \vbox (badness 3029) has occurred while \output is active []
-
-
+[3 <./dists_example.png> <./dists_example_semilogy.png>]
 
 Package fancyhdr Warning: \headheight is too small (14.22636pt): 
 (fancyhdr)                Make it at least 18.23401pt, for example:
@@ -275,7 +285,7 @@ Package fancyhdr Warning: \headheight is too small (14.22636pt):
 (fancyhdr)                \addtolength{\topmargin}{-4.00764pt}.
 
 [4]
-Overfull \hbox (1.57777pt too wide) in paragraph at lines 263--272
+Overfull \hbox (1.57777pt too wide) in paragraph at lines 281--290
  [][] 
  []
 
@@ -287,11 +297,14 @@ Package fancyhdr Warning: \headheight is too small (14.22636pt):
 (fancyhdr)                \addtolength{\topmargin}{-5.11366pt}.
 
 [5]
-<C3H8.jpeg, id=42, 2572.61125pt x 1709.38625pt>
+<C3H8.jpeg, id=47, 2572.61125pt x 1709.38625pt>
 File: C3H8.jpeg Graphic file (type jpg)
 <use C3H8.jpeg>
-Package pdftex.def Info: C3H8.jpeg  used on input line 357.
+Package pdftex.def Info: C3H8.jpeg  used on input line 375.
 (pdftex.def)             Requested size: 2572.60501pt x 1709.3821pt.
+
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
 
 
 Package fancyhdr Warning: \headheight is too small (14.22636pt): 
@@ -300,7 +313,10 @@ Package fancyhdr Warning: \headheight is too small (14.22636pt):
 (fancyhdr)                You might also make \topmargin smaller to compensate:
 (fancyhdr)                \addtolength{\topmargin}{-4.00764pt}.
 
-[6 <./C3H8.jpeg>] (./COB-2025-2080.bbl)
+[6]
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+
 
 Package fancyhdr Warning: \headheight is too small (14.22636pt): 
 (fancyhdr)                Make it at least 19.34003pt, for example:
@@ -308,25 +324,33 @@ Package fancyhdr Warning: \headheight is too small (14.22636pt):
 (fancyhdr)                You might also make \topmargin smaller to compensate:
 (fancyhdr)                \addtolength{\topmargin}{-5.11366pt}.
 
-[7] (./COB-2025-2080.aux)
+[7 <./C3H8.jpeg>] (./COB-2025-2080.bbl)
+
+Package fancyhdr Warning: \headheight is too small (14.22636pt): 
+(fancyhdr)                Make it at least 18.23401pt, for example:
+(fancyhdr)                \setlength{\headheight}{18.23401pt}.
+(fancyhdr)                You might also make \topmargin smaller to compensate:
+(fancyhdr)                \addtolength{\topmargin}{-4.00764pt}.
+
+[8] (./COB-2025-2080.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-22>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 4374 strings out of 474222
- 69441 string characters out of 5748733
- 1953975 words of memory out of 5000000
- 26574 multiletter control sequences out of 15000+600000
+ 4396 strings out of 474222
+ 70045 string characters out of 5748733
+ 1949975 words of memory out of 5000000
+ 26596 multiletter control sequences out of 15000+600000
  583499 words of font info for 59 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 72i,14n,79p,516b,377s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 72i,14n,79p,1062b,428s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on COB-2025-2080.pdf (7 pages, 484392 bytes).
+Output written on COB-2025-2080.pdf (8 pages, 817860 bytes).
 PDF statistics:
- 115 PDF objects out of 1000 (max. 8388607)
- 70 compressed objects within 1 object stream
+ 123 PDF objects out of 1000 (max. 8388607)
+ 73 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
- 11 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 21 words of extra memory for PDF output out of 10000 (max. 10000000)
 

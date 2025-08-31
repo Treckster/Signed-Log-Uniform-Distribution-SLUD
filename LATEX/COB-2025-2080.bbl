@@ -1,4 +1,4 @@
-\begin{thebibliography}{8}
+\begin{thebibliography}{10}
 \newcommand{\enquote}[1]{``#1''}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
@@ -37,10 +37,20 @@ McKay, M.D., Beckman, R.J. and Conover, W.J., 1979.
 \newblock \enquote{A comparison of three methods for selecting values of input variables in the analysis of output from a computer code}.
 \newblock \emph{Technometrics}, Vol.~21, No.~2, pp. 239--245.
 
+\bibitem[{Mor{\'e} \emph{et~al.}(1981)Mor{\'e}, Garbow and Hillstrom}]{More1981TestFunctions}
+Mor{\'e}, J.J., Garbow, B.S. and Hillstrom, K.E., 1981.
+\newblock \emph{Testing Unconstrained Optimization Software}, Vol. 189 of \emph{Lecture Notes in Computer Science}.
+\newblock Springer-Verlag, Berlin, Germany.
+
 \bibitem[{Moritz \emph{et~al.}(2018)Moritz, Nishihara, Wang, Tumanov, Liaw, Liang, Elibol, Yang, Paul, Jordan and Stoica}]{Ray2018}
 Moritz, P., Nishihara, R., Wang, S., Tumanov, A., Liaw, R., Liang, E., Elibol, M., Yang, Z., Paul, W., Jordan, M.I. and Stoica, I., 2018.
 \newblock \enquote{Ray: A distributed framework for emerging ai applications}.
 \newblock In \emph{13th USENIX Symposium on Operating Systems Design and Implementation (OSDI 18)}. USENIX Association, Carlsbad, CA, USA, pp. 561--577.
+
+\bibitem[{Sheth and Babu(2008)}]{Sheth2008LogarithmicDE}
+Sheth, P.N. and Babu, B.V., 2008.
+\newblock \enquote{Logarithmic differential evolution (lde) for optimization of kinetic parameters in pyrolysis of biomass}.
+\newblock In \emph{Proceedings of the International Conference on Chemical Engineering}. International Conference on Chemical Engineering, India.
 
 \bibitem[{Smith \emph{et~al.}(1999)Smith, Golden, Frenklach, Moriarty, Eiteneer, Goldenberg, Bowman, Hanson, Song, Gardiner, Lissianski and Qin}]{GRIMech30}
 Smith, G.P., Golden, D.M., Frenklach, M., Moriarty, N.W., Eiteneer, B., Goldenberg, M., Bowman, C.T., Hanson, R.K., Song, S., Gardiner, W.C.J., Lissianski, V.V. and Qin, Z., 1999.

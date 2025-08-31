@@ -1,15 +1,15 @@
 # Fdb version 4
-["bibtex COB-2025-2080"] 1752083609.80906 "COB-2025-2080.aux" "COB-2025-2080.bbl" "COB-2025-2080" 1755696770.91237 0
+["bibtex COB-2025-2080"] 0 "COB-2025-2080.aux" "COB-2025-2080.bbl" "COB-2025-2080" 1756672838.44885 -1
   "./abcm.bst" 1742335422 33655 a07f4bf715e269d2d4681c3e67be08d6 ""
-  "./bibfile.bib" 1748827439.45285 9880 518217eb87059ed02d384c0ad4e6d440 ""
-  "COB-2025-2080.aux" 1755696770.65965 5495 d6a87dde16fc4f953f4fb175c4db1346 "pdflatex"
+  "./bibfile.bib" 1756668546.33015 11026 0e561af1ebf90c0dbd0bc3805b98f7d3 ""
+  "COB-2025-2080.aux" 1756672838.2039 6122 dab59c658a3b665b3ec1f89733fb5c21 "pdflatex"
   (generated)
   "COB-2025-2080.bbl"
   "COB-2025-2080.blg"
   (rewritten before read)
-["pdflatex"] 1755696770.2871 "/home/estevan/Documents/Stevie/Pesquisas/COBEM2025/LogSigned/LATEX/COB-2025-2080.tex" "COB-2025-2080.pdf" "COB-2025-2080" 1755696770.91256 0
+["pdflatex"] 1756672837.17376 "/home/estevan/Documents/Stevie/Pesquisas/COBEM2025/LogSigned/LATEX/COB-2025-2080.tex" "COB-2025-2080.pdf" "COB-2025-2080" 1756672838.44903 0
   "/etc/texmf/web2c/texmf.cnf" 1751129842.13661 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/home/estevan/Documents/Stevie/Pesquisas/COBEM2025/LogSigned/LATEX/COB-2025-2080.tex" 1755696770.07448 31158 35f846b5dcd9f04ecf7ad58b2723110b ""
+  "/home/estevan/Documents/Stevie/Pesquisas/COBEM2025/LogSigned/LATEX/COB-2025-2080.tex" 1756672836.96411 33817 ce275bb3112756101d38ecca4af153c9 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/adobe/helvetic/phvr8r.tfm" 1136768653 4712 9ef4d7d106579d4b136e1529e1a4533c ""
@@ -88,11 +88,13 @@
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1751130945.40553 5472669 54eaf61a88b6b7896ebd0dac973cb29c ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1751130977 8215315 7de065ebdef6c6c4658a78b8b2555174 ""
   "C3H8.jpeg" 1748973225.23265 214790 2d048d0bb3963f3a502f6a921ac24d71 ""
-  "COB-2025-2080.aux" 1755696770.65965 5495 d6a87dde16fc4f953f4fb175c4db1346 "pdflatex"
-  "COB-2025-2080.bbl" 1752083609.89702 3116 bb5ddc38ad0320c2fa450cc75e8bf174 "bibtex COB-2025-2080"
-  "COB-2025-2080.tex" 1755696770.07448 31158 35f846b5dcd9f04ecf7ad58b2723110b ""
+  "COB-2025-2080.aux" 1756672838.2039 6122 dab59c658a3b665b3ec1f89733fb5c21 "pdflatex"
+  "COB-2025-2080.bbl" 1756668578.12102 3791 c28172ead552c82e178e1b76194a29fe "bibtex COB-2025-2080"
+  "COB-2025-2080.tex" 1756672836.96411 33817 ce275bb3112756101d38ecca4af153c9 ""
   "abcm.sty" 1748828282.61892 3986 253ad9d8064f340286b2fbdff0f44274 ""
   "cabecalho.eps" 1742335422 2062198 3791ffd754c5a1c3e20c70ad1470f51c ""
+  "dists_example.png" 1756667806.84349 200245 dc02e9cc908eb413912626931eebd8be ""
+  "dists_example_semilogy.png" 1756667807.38822 194507 4d5e6af8be4256df6b52edfe0b976418 ""
   (generated)
   "COB-2025-2080.aux"
   "COB-2025-2080.log"
