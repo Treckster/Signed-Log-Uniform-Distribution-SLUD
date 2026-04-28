@@ -28,25 +28,7 @@ def _stats_summary(values):
     }
 
 
-def score_runs(csv_file, fobjmin):
-    """Score a Stats CSV using the fobjmin success criterion.
-
-    A row counts as a success iff `final_objective_value <= fobjmin`.
-    Returns success rate, n_iter_opt distribution over successful runs,
-    and final_objective_value distribution over failed runs.
-    """
-    successes_iter = []
-    failures_obj = []
-
-    with open(csv_file, newline='') as f:
-        for row in csv.DictReader(f):
-            f_val = float(row['final_objective_value'])
-            n_iter = int(float(row['n_iter_opt']))
-            if f_val <= fobjmin:
-                successes_iter.append(n_iter)
-            else:
-                failures_obj.append(f_val)
-
+def _build_result(successes_iter, failures_obj, fobjmin):
     n_total = len(successes_iter) + len(failures_obj)
     return {
         'n_total':                  n_total,
@@ -56,6 +38,29 @@ def score_runs(csv_file, fobjmin):
         'success_n_iter_opt':       _stats_summary(successes_iter),
         'failure_final_objective':  _stats_summary(failures_obj),
     }
+
+
+def score_runs(csv_file, fobjmin, group_by='algorithm'):
+    """Score a Stats CSV using the fobjmin success criterion.
+
+    A row counts as a success iff `final_objective_value <= fobjmin`.
+    Returns `{group_key: stats_dict}`. If `group_by` is None or the
+    column isn't present, all rows fall under the key 'all'.
+    """
+    groups = {}                     # key -> (success_iters, failure_objs)
+    with open(csv_file, newline='') as f:
+        reader = csv.DictReader(f)
+        use_group = group_by if (group_by and group_by in (reader.fieldnames or [])) else None
+        for row in reader:
+            key = row[use_group] if use_group else 'all'
+            succ, fail = groups.setdefault(key, ([], []))
+            f_val = float(row['final_objective_value'])
+            if f_val <= fobjmin:
+                succ.append(int(float(row['n_iter_opt'])))
+            else:
+                fail.append(f_val)
+
+    return {key: _build_result(succ, fail, fobjmin) for key, (succ, fail) in groups.items()}
 
 
 def print_summary(name, result):
@@ -87,4 +92,6 @@ if __name__ == "__main__":
                 continue
             csv_path = os.path.join(stats_dir, problem, fname)
             encoder = fname[:-4]
-            print_summary(f"{problem}/{encoder}", score_runs(csv_path, FOBJMIN[problem]))
+            for group_key, result in score_runs(csv_path, FOBJMIN[problem]).items():
+                label = f"{problem}/{encoder}" if group_key == 'all' else f"{problem}/{encoder}/{group_key}"
+                print_summary(label, result)

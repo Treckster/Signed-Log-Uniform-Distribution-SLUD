@@ -10,6 +10,9 @@ from pymoo.termination import get_termination
 from pymoo.termination.fmin import MinimumFunctionValueTermination
 from pymoo.operators.sampling.lhs import LHS
 from pymoo.algorithms.soo.nonconvex.pso import PSO
+from pymoo.algorithms.soo.nonconvex.de import DE
+from pymoo.algorithms.soo.nonconvex.ga import GA
+from pymoo.algorithms.soo.nonconvex.es import ES
 
 import funcs
 
@@ -157,12 +160,20 @@ ENCODERS = {
 }
 
 
-n_pop = 100
-n_gen = 500
+n_pop = 50
+n_gen = 100
 n_iterations = 50
+
+ALGORITHMS = {
+    'PSO': lambda: PSO(pop_size=n_pop, sampling=LHS()),
+    'DE':  lambda: DE(pop_size=n_pop,  sampling=LHS()),
+    'GA':  lambda: GA(pop_size=n_pop,  sampling=LHS()),
+    'ES':  lambda: ES(pop_size=n_pop,  sampling=LHS()),
+}
 
 ACTIVE_PROBLEMS = ['brown']
 ACTIVE_ENCODERS = ['LIN', 'LUD', 'SLUD']
+ACTIVE_ALGOS    = ['PSO', 'DE', 'GA', 'ES']
 
 
 for prob_name in ACTIVE_PROBLEMS:
@@ -178,35 +189,39 @@ for prob_name in ACTIVE_PROBLEMS:
         func_dir = os.path.join("Stats", prob_name)
         os.makedirs(func_dir, exist_ok=True)
         csv_filename = os.path.join(func_dir, f"{enc_name}.csv")
-        fieldnames = ['iteration', 'seed', 'final_objective_value', 'n_iter_opt'] + [f'x{i}' for i in range(n_phys)]
+        fieldnames = (['iteration', 'seed', 'algorithm', 'final_objective_value', 'n_iter_opt']
+                      + [f'x{i}' for i in range(n_phys)])
 
         with open(csv_filename, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
 
-            for iteration in range(n_iterations):
-                problem = SLUDProblem(n_vars, xl, xu, encoder, bounds, spec.evalfunc)
-                algorithm = PSO(pop_size=n_pop, sampling=LHS())
-                termination = TerminateIfAny(
-                    get_termination("n_gen", n_gen),
-                    MinimumFunctionValueTermination(spec.fobjmin),
-                )
+            for algo_name in ACTIVE_ALGOS:
+                make_algo = ALGORITHMS[algo_name]
 
-                res = minimize(
-                    problem=problem,
-                    algorithm=algorithm,
-                    termination=termination,
-                    seed=iteration,
-                    verbose=False,
-                    save_history=False,
-                    display=None,
-                )
+                for iteration in range(n_iterations):
+                    problem = SLUDProblem(n_vars, xl, xu, encoder, bounds, spec.evalfunc)
+                    termination = TerminateIfAny(
+                        get_termination("n_gen", n_gen),
+                        MinimumFunctionValueTermination(spec.fobjmin),
+                    )
 
-                X_phys = encoder(res.X, bounds)
-                writer.writerow({
-                    'iteration': iteration,
-                    'seed': iteration,
-                    'final_objective_value': res.F[0],
-                    'n_iter_opt': res.algorithm.n_gen,
-                    **{f'x{i}': v for i, v in enumerate(X_phys)},
-                })
+                    res = minimize(
+                        problem=problem,
+                        algorithm=make_algo(),
+                        termination=termination,
+                        seed=iteration,
+                        verbose=False,
+                        save_history=False,
+                        display=None,
+                    )
+
+                    X_phys = encoder(res.X, bounds)
+                    writer.writerow({
+                        'iteration': iteration,
+                        'seed': iteration,
+                        'algorithm': algo_name,
+                        'final_objective_value': res.F[0],
+                        'n_iter_opt': res.algorithm.n_gen,
+                        **{f'x{i}': v for i, v in enumerate(X_phys)},
+                    })

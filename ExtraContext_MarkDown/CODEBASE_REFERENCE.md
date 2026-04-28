@@ -135,26 +135,37 @@ All three encoders return `n_phys`-length physical vectors; `funcs.py` is pure n
 
 ## 5. Optimization loop
 
-Inner body of `SignedLogUniDist.py`, run for each `(functoeval, decade_selector, iteration)`:
+Four nested loops in `SignedLogUniDist.py`, driven by `ACTIVE_PROBLEMS`, `ACTIVE_ENCODERS`, `ACTIVE_ALGOS`:
 
-1. Pick `decade_selector ∈ {LIN, LUD, SLUD}` and `functoeval ∈ {rosen, brown, powell, poly7}`.
-2. Build `bounds` (Nx3 array `[lb, ub, type]`) and the optimizer's `xl, xu` (unit axis for SLUD via `SLUD_Variable_Definition`; log10 for LUD; linear for LIN).
-3. Wrap into a `SLUDProblem`. `_evaluate` is two lines: `out["F"] = evalfunc(decade_selector(X, bounds)).reshape(-1, 1)` — encoders and objectives both broadcast over the whole `(pop, n_var)` matrix in one numpy call. No process pool; no Ray.
-4. Run **PSO** with `pop_size=n_pop` and **LHS** initial sampling.
-5. Termination: `n_gen` reached **OR** `f < fobjmin` (`TerminateIfAny`).
-6. Append a row to `Stats/{functoeval}/{encoder}.csv`.
+```
+for problem in ACTIVE_PROBLEMS:           # PROBLEMS registry → spec
+    for encoder in ACTIVE_ENCODERS:       # ENCODERS registry → (encoder_fn, prepare_fn)
+        n_vars, bounds, xl, xu = prepare(spec)
+        open one CSV per (problem, encoder); write header
+        for algo in ACTIVE_ALGOS:         # ALGORITHMS registry → factory
+            for iteration in range(n_iterations):
+                run minimize(...)
+                append a row tagged with `algorithm`
+```
 
-Defaults: `n_pop=100`, `n_gen=500`, `n_iterations=1000`, `seed=iteration`. Outer loops currently set to `['brown']` only and `[LUD, SLUD, LIN]`.
+Per iteration:
+
+1. Build a `SLUDProblem` wrapping `(n_var, xl, xu, encoder, bounds, evalfunc)`. `_evaluate` is one line: `out["F"] = evalfunc(encoder(X, bounds)).reshape(-1, 1)` — encoders + objectives both broadcast over the whole `(pop, n_var)` matrix.
+2. `algorithm = ALGORITHMS[algo_name]()` — factory, fresh instance per run (no leaked pymoo state).
+3. Termination: `n_gen` reached **OR** `f < fobjmin` (`TerminateIfAny`).
+4. Append one row to `Stats/{problem}/{encoder}.csv`, tagged with `algorithm`.
+
+Defaults: `n_pop=100`, `n_gen=500`, `n_iterations=50` (dev), `seed=iteration`. Algorithm pool: `PSO, DE, GA, ES` (CMA-ES skipped — its `x0/sigma` interface differs and would need an adapter). Active sets are list literals at module scope; flip them on/off without touching the loop body.
 
 ### Multi-run output schema
 
-`Stats/{functoeval}/{encoder_name}.csv`:
+`Stats/{problem}/{encoder}.csv`:
 
 ```
-iteration, seed, final_objective_value, n_iter_opt, x0, x1, [x2, x3, ...]
+iteration, seed, algorithm, final_objective_value, n_iter_opt, x0, x1, [x2, x3, ...]
 ```
 
-`n_iter_opt` is the number of generations actually used (terminated early when `f < fobjmin`). The `x*` columns are **physical-space** values (post `decade_selector`), not raw optimizer coordinates.
+One CSV per (problem, encoder); rows distinguished by `algorithm`. `n_iter_opt` is the number of generations actually used (early termination when `f < fobjmin`). The `x*` columns are **physical-space** values (post-encoder), so the count is `n_phys` (not `n_vars`).
 
 ### Stats post-processing (`statss.py`)
 
@@ -249,8 +260,11 @@ Done in v0.1.7-beta:
 Done in v0.1.8-beta:
 - [x] Collapse the per-(problem, encoder) configuration into a registry: `ProblemSpec` dataclass + `PROBLEMS` / `ENCODERS` dicts + per-encoder `prepare()` functions. Driver shrunk from ~150-line if/elif tree to ~30-line registry-driven loop. Verified behavior-preserving: iter=0 rows on brown match byte-for-byte across all three encoders before vs after.
 
+Done in v0.1.9-beta:
+- [x] Add DE / GA / ES baselines (CMA-ES skipped). New `ALGORITHMS` factory dict + `ACTIVE_ALGOS` list + extra loop level inside each (problem, encoder) cell. CSV gains an `algorithm` column; one CSV per cell with rows differentiated by algo. `statss.py` `score_runs` gains a `group_by='algorithm'` parameter that returns `{algo: stats}`.
+
 Open:
-- [ ] Add DE / GA / ES baselines for cross-algorithm comparison
+- (none from the original 5-item roadmap; future ideas live in §7 and §11)
 
 ---
 
