@@ -53,27 +53,25 @@ Removed on `EstevanSLUD` (preserved on `main`):
 
 All three live as plain functions at the top of `SignedLogUniDist.py`. Signature: `encoder(xis, bounds) -> X` where `xis` is the optimizer's decision vector and `X` is the physical-space vector handed to the objective.
 
-### 3.1 LIN — pass-through
+### 3.1 LIN — linear magnitude + sign carrier
 
 ```python
 def LIN(xis, bounds):
-    return xis
+    h = xis.shape[-1] // 2
+    return xis[..., :h] * np.sign(xis[..., h:])
 ```
 
-The objective receives `xis` directly. For functions that need a sign, the convention is **doubled dimensionality**: first half is magnitude (linear), second half ∈ [-1, 1] used via `np.sign(...)` inside the objective. So a 2-D problem under LIN runs with `n_vars=4`.
+Optimizer-space layout: doubled vector `[|x_1|, …, |x_n|, s_1, …, s_n]`. Optimizer bounds: `xl = [lb_mag, -1]`, `xu = [ub_mag, +1]`. **Output is `n_phys`-length physical vector.** Sign extraction is done by the encoder; objectives in `funcs.py` are pure n_phys-variable math.
 
-### 3.2 LUD — log magnitude + linear sign axis
+### 3.2 LUD — log magnitude + sign carrier
 
 ```python
 def LUD(xis, bounds):
-    h = len(xis) // 2
-    X = np.empty_like(xis)
-    X[:h] = 10.0 ** xis[:h]   # first half: log10 magnitudes → physical
-    X[h:] = xis[h:]           # second half: pass-through, used as sign carrier
-    return X
+    h = xis.shape[-1] // 2
+    return 10.0 ** xis[..., :h] * np.sign(xis[..., h:])
 ```
 
-Optimizer's bounds: `xl = [log10(lb_mag), -1]`, `xu = [log10(ub_mag), +1]`. `n_vars` is doubled. Sign is recovered downstream via `np.sign(x[i+n])` in `funcs.py`.
+Optimizer-space layout: same doubled vector as LIN, but the magnitude half holds `log10|x|`. Optimizer bounds: `xl = [log10(lb_mag), -1]`, `xu = [log10(ub_mag), +1]`. Output is `n_phys`-length physical vector.
 
 ### 3.3 SLUD — signed log uniform, single unit axis
 
@@ -116,9 +114,9 @@ def SLUD(xis, bounds):
 
 **Note on history.** This formulation supersedes a "doubled-axis with halfmark midpoint" version used in the original COB-2025 paper code, where the optimizer searched `[2·log10(lb), 2·log10(ub)]` and sign was inferred from which half of the axis the candidate landed in. The newer form is mathematically equivalent for type-0 in the limit, simpler, symmetric around zero, and natively supports type-±1 without separate logic. See §11 for the older formulation.
 
-### 3.4 Hidden coupling worth flagging
+### 3.4 No hidden coupling (since v0.1.7-beta)
 
-`funcs.py` decides what to do with the input by `len(x)` (2/4 or 5/10). LUD and LIN feed 4 (or 10) elements with sign embedded; SLUD feeds 2 (or 5). **The objective is encoder-aware.** If we add a new encoder, every test function must learn its arity. This is a major refactor target — see §7.
+All three encoders return `n_phys`-length physical vectors; `funcs.py` is pure n_phys-variable math (no `len(x)` branching). Adding a new encoder requires no edits to `funcs.py`. Sign extraction lives in the encoder body for LIN and LUD; SLUD's signed-log map handles it natively.
 
 ---
 
@@ -193,7 +191,6 @@ These are surfaced for future-session orientation, not action items — confirm 
 
 ### Code structure
 - **Massive duplication in the config block.** The if/elif tree for `(functoeval, decade_selector)` is hand-unrolled into 4 problems × 3 encoders ≈ 12 nearly-identical blocks setting `n_vars, ub, lb, bounds, xl, xu`. A `@dataclass` `ProblemSpec` per function + per-encoder `prepare(spec)` would compress this to ~80 lines.
-- **Encoder-aware objectives.** `funcs.py` switches behavior on `len(x)` — adding a new encoder means editing every test function. The encoder, not the objective, should own the `(decision-vec) → (physical-vec-with-sign)` mapping.
 
 ### Performance
 - **LHS sampling cost** is small but is computed every run; benign.
@@ -246,8 +243,10 @@ Done in v0.1.5-beta:
 Done in v0.1.6-beta:
 - [x] Rewrite `statss.py` to score on objective threshold (`final_objective_value <= fobjmin`), drop the magic-number `>= 501` heuristic.
 
+Done in v0.1.7-beta:
+- [x] Decouple objectives from encoder arity (Path A): sign extraction lives in the encoders; `funcs.py` is pure n_phys math. **Bug fix**: LUD's vectorized form (since v0.1.2-beta) was splitting on the population axis instead of the variable axis; pre-fix LUD numbers should not be trusted.
+
 Open:
-- [ ] Decouple objectives from encoder arity (`funcs.py` still switches on `len(x)`)
 - [ ] Collapse the per-(problem, encoder) configuration into a registry
 - [ ] Add DE / GA / ES baselines for cross-algorithm comparison
 

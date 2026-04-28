@@ -56,15 +56,24 @@ def SLUD(xis, bounds):
 
 
 def LUD(xis, bounds):
-    h = len(xis) // 2
-    X = np.empty_like(xis)
-    X[:h] = 10.0 ** xis[:h]
-    X[h:] = xis[h:]
-    return X
+    """Decode a doubled-vector LUD candidate to physical space.
+
+    Input layout (last axis): [log10|x_1|, ..., log10|x_n|, s_1, ..., s_n].
+    Output: 10**log10|x_i| * sign(s_i), length n.
+    Broadcasts over (pop, 2n) inputs.
+    """
+    h = xis.shape[-1] // 2
+    return 10.0 ** xis[..., :h] * np.sign(xis[..., h:])
 
 
 def LIN(xis, bounds):
-    return xis
+    """Decode a doubled-vector LIN candidate to physical space.
+
+    Input layout (last axis): [|x_1|, ..., |x_n|, s_1, ..., s_n].
+    Output: |x_i| * sign(s_i), length n.
+    """
+    h = xis.shape[-1] // 2
+    return xis[..., :h] * np.sign(xis[..., h:])
 
 
 class SLUDProblem(Problem):
@@ -80,11 +89,11 @@ class SLUDProblem(Problem):
 
 n_pop = 100
 n_gen = 500
-n_iterations = 1000
+n_iterations = 50
 
 
 for functoeval in ['brown']:
-    for decade_selector in [LUD, SLUD, LIN]:
+    for decade_selector in [LIN, LUD, SLUD]:
 
         if functoeval == 'rosen':  # x unconstrained, fmin=0, xopt=(1,1)
             evalfunc = funcs.rosen
@@ -194,7 +203,9 @@ for functoeval in ['brown']:
         func_dir = os.path.join("Stats", functoeval)
         os.makedirs(func_dir, exist_ok=True)
         csv_filename = os.path.join(func_dir, f"{decade_selector.__name__}.csv")
-        fieldnames = ['iteration', 'seed', 'final_objective_value', 'n_iter_opt'] + [f'x{i}' for i in range(n_vars)]
+        # Encoders return n_phys-length physical vectors; n_vars is the optimizer-space size.
+        n_phys = n_vars if decade_selector is SLUD else n_vars // 2
+        fieldnames = ['iteration', 'seed', 'final_objective_value', 'n_iter_opt'] + [f'x{i}' for i in range(n_phys)]
 
         with open(csv_filename, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
