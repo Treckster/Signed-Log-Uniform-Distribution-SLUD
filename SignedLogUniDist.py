@@ -1,7 +1,6 @@
 import os
 import csv
 import numpy as np
-import ray
 from pymoo.optimize import minimize
 from pymoo.core.problem import Problem
 from pymoo.core.termination import TerminateIfAny
@@ -68,35 +67,20 @@ def LIN(xis, bounds):
     return xis
 
 
-@ray.remote
-def evaluate_batch(batch, decade_selector, bounds, evalfunc):
-    return [evalfunc(decade_selector(x, bounds)) for x in batch]
-
-
 class SLUDProblem(Problem):
-    def __init__(self, n_var, xl, xu, decade_selector, bounds, evalfunc, batch_size=10):
+    def __init__(self, n_var, xl, xu, decade_selector, bounds, evalfunc):
         super().__init__(n_var=n_var, n_obj=1, xl=xl, xu=xu)
         self._decode = decade_selector
         self._bounds = bounds
         self._eval = evalfunc
-        self._batch_size = batch_size
 
     def _evaluate(self, X, out, *args, **kwargs):
-        bs = self._batch_size
-        batches = [X[i:i + bs] for i in range(0, len(X), bs)]
-        futures = [evaluate_batch.remote(b, self._decode, self._bounds, self._eval)
-                   for b in batches]
-        results = [r for sub in ray.get(futures) for r in sub]
-        out["F"] = np.array(results).reshape(-1, 1)
+        out["F"] = self._eval(self._decode(X, self._bounds)).reshape(-1, 1)
 
 
-debug = False
-n_threads = 16
 n_pop = 100
 n_gen = 500
 n_iterations = 1000
-
-ray.init(num_cpus=n_threads, local_mode=debug)
 
 
 for functoeval in ['brown']:
@@ -243,6 +227,3 @@ for functoeval in ['brown']:
                     **{f'x{i}': v for i, v in enumerate(X_transformed)},
                 }
                 writer.writerow(row)
-
-
-ray.shutdown()

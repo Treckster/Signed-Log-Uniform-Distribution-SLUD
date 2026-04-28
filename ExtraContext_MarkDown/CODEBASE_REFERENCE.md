@@ -137,14 +137,13 @@ def SLUD(xis, bounds):
 Inner body of `SignedLogUniDist.py`, run for each `(functoeval, decade_selector, iteration)`:
 
 1. Pick `decade_selector ∈ {LIN, LUD, SLUD}` and `functoeval ∈ {rosen, brown, powell, poly7}`.
-2. Build `bounds` (Nx3 array `[lb, ub, sign_constraint]`) and the optimizer's `xl, xu` (in log10 for LUD/SLUD, linear for LIN).
-3. Wrap into a pymoo `Problem` whose `_evaluate` ships population batches of size 10 to Ray actors that call `decade_selector → evalfunc`.
-4. Run **PSO** with `pop_size=n_pop` and **LHS** initial sampling (rationale: equal-prob-per-decade strata when bounds are log).
+2. Build `bounds` (Nx3 array `[lb, ub, type]`) and the optimizer's `xl, xu` (unit axis for SLUD via `SLUD_Variable_Definition`; log10 for LUD; linear for LIN).
+3. Wrap into a `SLUDProblem`. `_evaluate` is two lines: `out["F"] = evalfunc(decade_selector(X, bounds)).reshape(-1, 1)` — encoders and objectives both broadcast over the whole `(pop, n_var)` matrix in one numpy call. No process pool; no Ray.
+4. Run **PSO** with `pop_size=n_pop` and **LHS** initial sampling.
 5. Termination: `n_gen` reached **OR** `f < fobjmin` (`TerminateIfAny`).
-6. Track `algorithm.pop.get("F").min()` per generation in a callback.
-7. Append a row to `Stats/{functoeval}/{encoder}.csv`.
+6. Append a row to `Stats/{functoeval}/{encoder}.csv`.
 
-Defaults at v0.1-beta: `n_pop=100`, `n_gen=500`, `n_threads=16`, `seed=iteration`. Outer loops currently set to `['brown']` only and `[LUD, SLUD, LIN]`; `range(1000)` for iterations.
+Defaults: `n_pop=100`, `n_gen=500`, `n_iterations=1000`, `seed=iteration`. Outer loops currently set to `['brown']` only and `[LUD, SLUD, LIN]`.
 
 ### Multi-run output schema
 
@@ -190,10 +189,9 @@ These are surfaced for future-session orientation, not action items — confirm 
 - **Encoder-aware objectives.** `funcs.py` switches behavior on `len(x)` — adding a new encoder means editing every test function. The encoder, not the objective, should own the `(decision-vec) → (physical-vec-with-sign)` mapping.
 
 ### Performance
-- **Ray for analytical objectives is almost certainly net-negative.** The four test functions are microsecond-scale; Ray's IPC overhead per `evaluate_batch.remote(...)` will dominate. Profile a single-process baseline first; only keep Ray if the per-eval cost grows (e.g. when `poly7` is replaced by an actual CFD/chem-kinetics evaluation).
-- **`batch_size = 10`** is hard-coded; with `pop_size=100` that's 10 Ray tasks per generation. Tune empirically.
 - **LHS sampling cost** is small but is computed every run; benign.
-- **No JIT (numba/jax) and no vectorized objective.** `poly7` calls `np.polyval` on a 100-point grid per individual; a vectorized batch eval (whole population at once) would be 10–100× faster than the per-individual loop. Encoders (`SLUD`, `LUD`) are now vectorized and broadcast over a 2-D `(pop, n_var)` matrix — `funcs.py` is the remaining serial bottleneck.
+- **No JIT (numba/jax).** Could matter for poly7 if the population grows substantially, but at current scale the matrix multiply (`xis @ T_powers`) is already at numpy's BLAS path. Skip unless profiling proves otherwise.
+- **If a future objective is genuinely expensive** (CFD/chem-kinetics, > ~10 ms/eval), reintroducing parallelism is reasonable — but go straight to a process pool (`concurrent.futures.ProcessPoolExecutor`) before reaching for Ray. Ray earns its keep only at distributed-cluster scale.
 
 ### Statistical methodology (for the "more comparisons" goal)
 - Currently only PSO is used. UNSGA3 is imported but never instantiated.
@@ -229,10 +227,16 @@ Done in v0.1.2-beta (the simplify pass):
 - [x] Hoist class definitions out of the per-iteration loop; remove trailing dead code
 - [x] Open CSV once per (function, encoder) cell; switch to `csv.DictWriter`
 
+Done in v0.1.3-beta:
+- [x] Port the unit-axis SLUD formulation from `MFChemVirt_Experimental`
+
+Done in v0.1.4-beta:
+- [x] Vectorize `funcs.py` to evaluate whole `(pop, n_var)` populations at once
+- [x] Remove Ray; `_evaluate` is now a 2-line numpy chain (no IPC overhead)
+
 Open:
-- [ ] Decouple objectives from encoder arity (encoder owns sign handling)
+- [ ] Decouple objectives from encoder arity (`funcs.py` still switches on `len(x)`)
 - [ ] Collapse the per-(problem, encoder) configuration into a registry
-- [ ] Profile single-process vs Ray on each objective; remove Ray where it loses
 - [ ] Add UNSGA3 / DE / CMA-ES baselines for cross-algorithm comparison
 - [ ] Rewrite `statss.py` to score on objective threshold, not generation count
 - [ ] Add a `requirements.txt` / `pyproject.toml`
