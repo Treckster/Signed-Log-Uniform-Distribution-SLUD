@@ -1,5 +1,7 @@
 import os
 import csv
+from dataclasses import dataclass
+from typing import Callable
 import numpy as np
 from pymoo.optimize import minimize
 from pymoo.core.problem import Problem
@@ -87,124 +89,95 @@ class SLUDProblem(Problem):
         out["F"] = self._eval(self._decode(X, self._bounds)).reshape(-1, 1)
 
 
+@dataclass
+class ProblemSpec:
+    """Single source of truth for a benchmark problem in physical (decoded) coordinates."""
+    name: str
+    evalfunc: Callable
+    fobjmin: float
+    lb_mag: np.ndarray   # (n_phys,) positive magnitudes
+    ub_mag: np.ndarray   # (n_phys,) positive magnitudes
+    types:  np.ndarray   # (n_phys,) values in {-1, 0, 1}: 0=both signs, ±1=fixed sign
+
+
+PROBLEMS = {
+    'rosen':  ProblemSpec('rosen',  funcs.rosen,  1.0e-8,
+                          np.array([1e-4, 1e-4]),
+                          np.array([1e2,  1e2 ]),
+                          np.array([0, 0])),
+    'brown':  ProblemSpec('brown',  funcs.brown,  1.0e-10,
+                          np.array([1e-8, 1e-8]),
+                          np.array([1e8,  1e8 ]),
+                          np.array([0, 0])),
+    'powell': ProblemSpec('powell', funcs.powell, 1.0e-10,
+                          np.array([1e-6, 1e-6]),
+                          np.array([1e2,  1e2 ]),
+                          np.array([0, 0])),
+    'poly7':  ProblemSpec('poly7',  funcs.poly7,  1.0e-5,
+                          np.array([1e-2, 1e-5, 1e-8, 1e-11, 1e-14]),
+                          np.array([1e2,  1e-1, 1e-4, 1e-7,  1e-10]),
+                          np.array([0, 0, 0, 0, 0])),
+}
+
+
+def prepare_SLUD(spec):
+    bounds = np.column_stack([spec.lb_mag, spec.ub_mag, spec.types])
+    xl, xu = SLUD_Variable_Definition(bounds)
+    return len(spec.lb_mag), bounds, xl, xu
+
+
+def _doubled_bounds(spec):
+    """Bounds array for LIN/LUD: doubled (magnitude half + sign-carrier half)."""
+    n_phys = len(spec.lb_mag)
+    return np.column_stack([
+        np.concatenate([spec.lb_mag, np.full(n_phys, -1.0)]),
+        np.concatenate([spec.ub_mag, np.full(n_phys,  1.0)]),
+        np.zeros(2 * n_phys),
+    ])
+
+
+def prepare_LUD(spec):
+    n_phys = len(spec.lb_mag)
+    xl = np.concatenate([np.log10(spec.lb_mag), np.full(n_phys, -1.0)])
+    xu = np.concatenate([np.log10(spec.ub_mag), np.full(n_phys,  1.0)])
+    return 2 * n_phys, _doubled_bounds(spec), xl, xu
+
+
+def prepare_LIN(spec):
+    n_phys = len(spec.lb_mag)
+    xl = np.concatenate([spec.lb_mag, np.full(n_phys, -1.0)])
+    xu = np.concatenate([spec.ub_mag, np.full(n_phys,  1.0)])
+    return 2 * n_phys, _doubled_bounds(spec), xl, xu
+
+
+ENCODERS = {
+    'LIN':  (LIN,  prepare_LIN),
+    'LUD':  (LUD,  prepare_LUD),
+    'SLUD': (SLUD, prepare_SLUD),
+}
+
+
 n_pop = 100
 n_gen = 500
 n_iterations = 50
 
+ACTIVE_PROBLEMS = ['brown']
+ACTIVE_ENCODERS = ['LIN', 'LUD', 'SLUD']
 
-for functoeval in ['brown']:
-    for decade_selector in [LIN, LUD, SLUD]:
 
-        if functoeval == 'rosen':  # x unconstrained, fmin=0, xopt=(1,1)
-            evalfunc = funcs.rosen
-            fobjmin = 1.0e-8
-            if decade_selector == LUD:
-                n_vars = 4
-                ub = [1E2, 1E2, 1, 1]
-                lb = [1E-4, 1E-4, -1, -1]
-                bounds = np.column_stack([lb, ub, np.zeros(n_vars)])
-                xl = np.concatenate([np.log10(lb[0:2]), lb[2:4]])
-                xu = np.concatenate([np.log10(ub[0:2]), ub[2:4]])
-            elif decade_selector == SLUD:
-                n_vars = 2
-                ub = [1E2, 1E2]
-                lb = [1E-4, 1E-4]
-                sign = [0, 0]
-                bounds = np.column_stack([lb, ub, sign])
-                xl, xu = SLUD_Variable_Definition(bounds)
-            else:
-                n_vars = 4
-                ub = [1E2, 1E2, 1, 1]
-                lb = [1E-4, 1E-4, -1, -1]
-                bounds = np.column_stack([lb, ub, np.zeros(n_vars)])
-                xl = np.array(lb)
-                xu = np.array(ub)
+for prob_name in ACTIVE_PROBLEMS:
+    spec = PROBLEMS[prob_name]
+    n_phys = len(spec.lb_mag)
 
-        elif functoeval == 'brown':  # badly-scaled, fmin=0, xopt~(1e6, 2e-6)
-            evalfunc = funcs.brown
-            fobjmin = 1.0e-10
-            if decade_selector == LUD:
-                n_vars = 4
-                ub = [1E8, 1E8, 1, 1]
-                lb = [1E-8, 1E-8, -1, -1]
-                bounds = np.column_stack([lb, ub, np.zeros(n_vars)])
-                xl = np.concatenate([np.log10(lb[0:2]), lb[2:4]])
-                xu = np.concatenate([np.log10(ub[0:2]), ub[2:4]])
-            elif decade_selector == SLUD:
-                n_vars = 2
-                ub = [1E8, 1E8]
-                lb = [1E-8, 1E-8]
-                sign = [0, 0]
-                bounds = np.column_stack([lb, ub, sign])
-                xl, xu = SLUD_Variable_Definition(bounds)
-            else:
-                n_vars = 4
-                ub = [1E8, 1E8, 1, 1]
-                lb = [1E-8, 1E-8, -1, -1]
-                bounds = np.column_stack([lb, ub, np.zeros(n_vars)])
-                xl = np.array(lb)
-                xu = np.array(ub)
+    for enc_name in ACTIVE_ENCODERS:
+        encoder, prepare = ENCODERS[enc_name]
+        n_vars, bounds, xl, xu = prepare(spec)
 
-        elif functoeval == 'powell':  # badly-scaled, fmin=0, xopt~(1.098e-5, 9.106)
-            evalfunc = funcs.powell
-            fobjmin = 1.0e-10
-            if decade_selector == LUD:
-                n_vars = 4
-                ub = [1E2, 1E2, 1, 1]
-                lb = [1E-6, 1E-6, -1, -1]
-                bounds = np.column_stack([lb, ub, np.zeros(n_vars)])
-                xl = np.concatenate([np.log10(lb[0:2]), lb[2:4]])
-                xu = np.concatenate([np.log10(ub[0:2]), ub[2:4]])
-            elif decade_selector == SLUD:
-                n_vars = 2
-                ub = [1E2, 1E2]
-                lb = [1E-6, 1E-6]
-                sign = [0, 0]
-                bounds = np.column_stack([lb, ub, sign])
-                xl, xu = SLUD_Variable_Definition(bounds)
-            else:
-                n_vars = 4
-                ub = [1E2, 1E2, 1, 1]
-                lb = [1E-6, 1E-6, -1, -1]
-                bounds = np.column_stack([lb, ub, np.zeros(n_vars)])
-                xl = np.array(lb)
-                xu = np.array(ub)
+        print(f"Evaluating {prob_name} with {n_vars} variables ({enc_name})")
 
-        elif functoeval == 'poly7':  # cp(T) polynomial fit for C3H8 over T in [200,1000]K
-            evalfunc = funcs.poly7
-            fobjmin = 1e-5
-            if decade_selector == LUD:
-                n_vars = 10
-                ub = [1E2, 1E-1, 1E-4, 1E-7, 1E-10, 1, 1, 1, 1, 1]
-                lb = [1E-2, 1E-5, 1E-8, 1E-11, 1E-14, -1, -1, -1, -1, -1]
-                bounds = np.column_stack([lb, ub, np.zeros(n_vars)])
-                xl = np.concatenate([np.log10(lb[0:5]), lb[5:10]])
-                xu = np.concatenate([np.log10(ub[0:5]), ub[5:10]])
-            elif decade_selector == SLUD:
-                n_vars = 5
-                ub = [1E2, 1E-1, 1E-4, 1E-7, 1E-10]
-                lb = [1E-2, 1E-5, 1E-8, 1E-11, 1E-14]
-                sign = [0, 0, 0, 0, 0]
-                bounds = np.column_stack([lb, ub, sign])
-                xl, xu = SLUD_Variable_Definition(bounds)
-            else:
-                n_vars = 10
-                ub = [1E2, 1E-1, 1E-4, 1E-7, 1E-10, 1, 1, 1, 1, 1]
-                lb = [1E-2, 1E-5, 1E-8, 1E-11, 1E-14, -1, -1, -1, -1, -1]
-                bounds = np.column_stack([lb, ub, np.zeros(n_vars)])
-                xl = np.array(lb)
-                xu = np.array(ub)
-
-        else:
-            raise ValueError(f"Unknown function: {functoeval}")
-
-        print(f"Evaluating {functoeval} with {n_vars} variables ({decade_selector.__name__})")
-
-        func_dir = os.path.join("Stats", functoeval)
+        func_dir = os.path.join("Stats", prob_name)
         os.makedirs(func_dir, exist_ok=True)
-        csv_filename = os.path.join(func_dir, f"{decade_selector.__name__}.csv")
-        # Encoders return n_phys-length physical vectors; n_vars is the optimizer-space size.
-        n_phys = n_vars if decade_selector is SLUD else n_vars // 2
+        csv_filename = os.path.join(func_dir, f"{enc_name}.csv")
         fieldnames = ['iteration', 'seed', 'final_objective_value', 'n_iter_opt'] + [f'x{i}' for i in range(n_phys)]
 
         with open(csv_filename, 'w', newline='') as csvfile:
@@ -212,11 +185,11 @@ for functoeval in ['brown']:
             writer.writeheader()
 
             for iteration in range(n_iterations):
-                problem = SLUDProblem(n_vars, xl, xu, decade_selector, bounds, evalfunc)
+                problem = SLUDProblem(n_vars, xl, xu, encoder, bounds, spec.evalfunc)
                 algorithm = PSO(pop_size=n_pop, sampling=LHS())
                 termination = TerminateIfAny(
                     get_termination("n_gen", n_gen),
-                    MinimumFunctionValueTermination(fobjmin),
+                    MinimumFunctionValueTermination(spec.fobjmin),
                 )
 
                 res = minimize(
@@ -229,12 +202,11 @@ for functoeval in ['brown']:
                     display=None,
                 )
 
-                X_transformed = decade_selector(res.X, bounds)
-                row = {
+                X_phys = encoder(res.X, bounds)
+                writer.writerow({
                     'iteration': iteration,
                     'seed': iteration,
                     'final_objective_value': res.F[0],
                     'n_iter_opt': res.algorithm.n_gen,
-                    **{f'x{i}': v for i, v in enumerate(X_transformed)},
-                }
-                writer.writerow(row)
+                    **{f'x{i}': v for i, v in enumerate(X_phys)},
+                })

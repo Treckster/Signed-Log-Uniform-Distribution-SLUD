@@ -190,7 +190,7 @@ Note the MANYRUNS driver currently loops 1000 iterations but existing CSVs only 
 These are surfaced for future-session orientation, not action items — confirm scope with user before touching.
 
 ### Code structure
-- **Massive duplication in the config block.** The if/elif tree for `(functoeval, decade_selector)` is hand-unrolled into 4 problems × 3 encoders ≈ 12 nearly-identical blocks setting `n_vars, ub, lb, bounds, xl, xu`. A `@dataclass` `ProblemSpec` per function + per-encoder `prepare(spec)` would compress this to ~80 lines.
+*(The "massive duplication in the config block" smell was resolved in v0.1.8-beta — see §10. Problem definitions now live in a `PROBLEMS` dict of `ProblemSpec` dataclasses; per-encoder `prepare()` functions derive `(n_vars, bounds, xl, xu)` from a spec.)*
 
 ### Performance
 - **LHS sampling cost** is small but is computed every run; benign.
@@ -246,8 +246,10 @@ Done in v0.1.6-beta:
 Done in v0.1.7-beta:
 - [x] Decouple objectives from encoder arity (Path A): sign extraction lives in the encoders; `funcs.py` is pure n_phys math. **Bug fix**: LUD's vectorized form (since v0.1.2-beta) was splitting on the population axis instead of the variable axis; pre-fix LUD numbers should not be trusted.
 
+Done in v0.1.8-beta:
+- [x] Collapse the per-(problem, encoder) configuration into a registry: `ProblemSpec` dataclass + `PROBLEMS` / `ENCODERS` dicts + per-encoder `prepare()` functions. Driver shrunk from ~150-line if/elif tree to ~30-line registry-driven loop. Verified behavior-preserving: iter=0 rows on brown match byte-for-byte across all three encoders before vs after.
+
 Open:
-- [ ] Collapse the per-(problem, encoder) configuration into a registry
 - [ ] Add DE / GA / ES baselines for cross-algorithm comparison
 
 ---
