@@ -28,14 +28,17 @@ SLUD's selling point: same dimensionality as LIN, log-spaced resolution like LUD
 
 ```
 repo/
+├── pyproject.toml               # uv-managed project metadata + direct deps
+├── uv.lock                      # uv lockfile (full transitive pin); commit this
+├── .python-version              # uv: pinned interpreter (3.13)
 ├── funcs.py                     # 4 test objectives (rosen, brown, powell, poly7)
-├── SignedLogUniDist.py      # SOLE driver: nested loops over (function, encoder, seed), append to Stats/{func}/{encoder}.csv
+├── SignedLogUniDist.py          # SOLE driver: nested loops over (function, encoder, seed), append to Stats/{func}/{encoder}.csv
 ├── plot_dists_example.py        # Generates dists_example.png and dists_example_semilogy.png (linear vs SLUD curve illustration)
 ├── statss.py                    # Read a Stats CSV and compute count/mean/median/std/quartiles/failure-rate for one column
 ├── plots/                       # Generated figures (convergence + distribution illustrations)
 ├── Stats/{func}/{encoder}.csv   # Persisted multi-run results (200 rows each at v0.1-beta)
 ├── ExtraContext_MarkDown/       # This folder — context docs for AI collaboration
-└── .vscode/, __pycache__/       # IDE / runtime cache
+└── .vscode/, .venv/, __pycache__/   # IDE / venv / runtime cache (gitignored)
 ```
 
 Removed on `EstevanSLUD` (preserved on `main`):
@@ -234,12 +237,14 @@ Done in v0.1.4-beta:
 - [x] Vectorize `funcs.py` to evaluate whole `(pop, n_var)` populations at once
 - [x] Remove Ray; `_evaluate` is now a 2-line numpy chain (no IPC overhead)
 
+Done in v0.1.5-beta:
+- [x] Add `pyproject.toml` + `uv.lock` (uv-managed dependencies; Python 3.13; numpy / pymoo / matplotlib pinned via the lock file). `uv sync` reproduces the env from a fresh clone.
+
 Open:
 - [ ] Decouple objectives from encoder arity (`funcs.py` still switches on `len(x)`)
 - [ ] Collapse the per-(problem, encoder) configuration into a registry
-- [ ] Add UNSGA3 / DE / CMA-ES baselines for cross-algorithm comparison
+- [ ] Add DE / GA / ES baselines for cross-algorithm comparison
 - [ ] Rewrite `statss.py` to score on objective threshold, not generation count
-- [ ] Add a `requirements.txt` / `pyproject.toml`
 
 ---
 
