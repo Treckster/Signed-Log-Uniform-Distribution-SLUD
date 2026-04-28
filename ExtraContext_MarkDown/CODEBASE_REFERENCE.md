@@ -34,7 +34,7 @@ repo/
 ├── funcs.py                     # 4 test objectives (rosen, brown, powell, poly7)
 ├── SignedLogUniDist.py          # SOLE driver: nested loops over (function, encoder, seed), append to Stats/{func}/{encoder}.csv
 ├── plot_dists_example.py        # Generates dists_example.png and dists_example_semilogy.png (linear vs SLUD curve illustration)
-├── statss.py                    # Read a Stats CSV and compute count/mean/median/std/quartiles/failure-rate for one column
+├── statss.py                    # Score a Stats CSV by the fobjmin success criterion; per-cell summary print
 ├── plots/                       # Generated figures (convergence + distribution illustrations)
 ├── Stats/{func}/{encoder}.csv   # Persisted multi-run results (200 rows each at v0.1-beta)
 ├── ExtraContext_MarkDown/       # This folder — context docs for AI collaboration
@@ -160,9 +160,13 @@ iteration, seed, final_objective_value, n_iter_opt, x0, x1, [x2, x3, ...]
 
 ### Stats post-processing (`statss.py`)
 
-`calculate_statistics(csv, columns)` returns count/mean/median/std/min/max/q25/q75/failures/success%.
+`score_runs(csv_file, fobjmin)` reads a Stats CSV and classifies each row by `final_objective_value <= fobjmin`. Returns:
 
-**Failure heuristic:** a row is a failure iff the analyzed column ≥ 501. This is meant for `n_iter_opt` against `n_gen=500` (i.e. "ran out of generations"). Magic number — couples this util to the driver's `n_gen` setting. Refactor candidate.
+- `n_total`, `n_success`, `success_rate` (fraction in [0, 1])
+- `success_n_iter_opt`: count/mean/median/std/min/max/q25/q75 of `n_iter_opt` over runs that converged
+- `failure_final_objective`: the same summary applied to `final_objective_value` over runs that didn't, so the failure mode is visible (stuck at saddle vs blew up)
+
+`print_summary(name, result)` formats the dict for terminal viewing. Running `python3 statss.py` walks `Stats/{problem}/{encoder}.csv` and prints a per-cell block. The `FOBJMIN` dict at the top of `statss.py` is the per-problem threshold — kept in sync with the driver manually until Step 4 introduces a registry that statss can import from.
 
 ---
 
@@ -200,7 +204,6 @@ These are surfaced for future-session orientation, not action items — confirm 
 - Currently only PSO is used. UNSGA3 is imported but never instantiated.
 - Only LHS sampling — could compare uniform-random, Sobol, Halton.
 - Only one `n_pop`/`n_gen` pair. A budget-vs-success-rate sweep would strengthen the comparison.
-- Failure detection is heuristic (`n_iter_opt ≥ n_gen+1`). A direct success criterion (`final_objective_value ≤ fobjmin`) is already in the data and more reliable.
 - No statistical significance test between LIN/LUD/SLUD success rates (Wilcoxon / bootstrap CI) — straightforward to add in `statss.py`.
 
 ---
@@ -240,11 +243,13 @@ Done in v0.1.4-beta:
 Done in v0.1.5-beta:
 - [x] Add `pyproject.toml` + `uv.lock` (uv-managed dependencies; Python 3.13; numpy / pymoo / matplotlib pinned via the lock file). `uv sync` reproduces the env from a fresh clone.
 
+Done in v0.1.6-beta:
+- [x] Rewrite `statss.py` to score on objective threshold (`final_objective_value <= fobjmin`), drop the magic-number `>= 501` heuristic.
+
 Open:
 - [ ] Decouple objectives from encoder arity (`funcs.py` still switches on `len(x)`)
 - [ ] Collapse the per-(problem, encoder) configuration into a registry
 - [ ] Add DE / GA / ES baselines for cross-algorithm comparison
-- [ ] Rewrite `statss.py` to score on objective threshold, not generation count
 
 ---
 

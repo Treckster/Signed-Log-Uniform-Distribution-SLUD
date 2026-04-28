@@ -1,90 +1,90 @@
 import csv
+import os
 import statistics
 
-def calculate_statistics(csv_file, columns=None):
-    """
-    Read a CSV file and calculate statistics for specified columns.
-    
-    Args:
-        csv_file (str): Path to the CSV file
-        columns (list): List of column names to analyze. If None, analyzes all numeric columns.
-    
-    Returns:
-        dict: Dictionary containing statistics for each column
-    """
-    # Read the CSV file and collect data
-    data = {}
-    headers = []
-    
-    with open(csv_file, 'r', newline='', encoding='utf-8') as file:
-        reader = csv.reader(file)
-        headers = next(reader)  # Get column headers
-        
-        # Initialize data dictionary
-        for header in headers:
-            data[header] = []
-        
-        # Read all rows
-        for row in reader:
-            for i, value in enumerate(row):
-                if i < len(headers):
-                    # Try to convert to float, skip if not numeric
-                    try:
-                        numeric_value = float(value)
-                        data[headers[i]].append(numeric_value)
-                    except (ValueError, TypeError):
-                        # Skip non-numeric values
-                        continue
-    
-    # If no columns specified, use all columns that have numeric data
-    if columns is None:
-        columns = [col for col in headers if data[col]]
-    
-    stats = {}
-    
-    for col in columns:
-        if col in data and data[col]:
-            col_data = data[col]
-            # Filter out failures (values >= 501) and count them
-            failures = [x for x in col_data if x >= 501]
-            success_data = [x for x in col_data if x < 501]
-            failure_count = len(failures)
-            
-            # Use success data for max calculation, or original data if no successes
-            stats[col] = {
-                'count': len(success_data),  # Only successful runs
-                'mean': statistics.mean(success_data) if success_data else 0,  # Only successful runs
-                'median': statistics.median(success_data) if success_data else 0,  # Only successful runs
-                'std': statistics.stdev(success_data) if len(success_data) > 1 else 0,  # Only successful runs
-                'min': min(success_data) if success_data else 0,  # Only successful runs
-                'max': max(success_data) if success_data else 0,  # Only successful runs
-                'q25': statistics.quantiles(success_data, n=4)[0] if len(success_data) >= 4 else (min(success_data) if success_data else 0),  # Only successful runs
-                'q75': statistics.quantiles(success_data, n=4)[2] if len(success_data) >= 4 else (max(success_data) if success_data else 0),  # Only successful runs
-                'failures': failure_count,  # Count of failed runs (>= 501)
-                'success percentage': (len(success_data) / len(col_data)) * 100 if col_data else 0  # Uses both successful and total runs
-            }
-    
-    return stats
 
-def print_statistics(stats):
-    """Print statistics in a formatted way."""
-    for column, values in stats.items():
-        print(f"\n=== {column} ===")
-        for stat_name, stat_value in values.items():
-            print(f"{stat_name}: {stat_value:.4f}")
+# Step 4 will replace this with `from SignedLogUniDist import PROBLEMS`.
+FOBJMIN = {
+    'rosen':  1e-8,
+    'brown':  1e-10,
+    'powell': 1e-10,
+    'poly7':  1e-5,
+}
 
-# Example usage
+
+def _stats_summary(values):
+    """mean/median/std/min/max/q25/q75 for a list of floats; safe on empty/short input."""
+    if not values:
+        return {'count': 0}
+    return {
+        'count':  len(values),
+        'mean':   statistics.mean(values),
+        'median': statistics.median(values),
+        'std':    statistics.stdev(values) if len(values) > 1 else 0.0,
+        'min':    min(values),
+        'max':    max(values),
+        'q25':    statistics.quantiles(values, n=4)[0] if len(values) >= 4 else min(values),
+        'q75':    statistics.quantiles(values, n=4)[2] if len(values) >= 4 else max(values),
+    }
+
+
+def score_runs(csv_file, fobjmin):
+    """Score a Stats CSV using the fobjmin success criterion.
+
+    A row counts as a success iff `final_objective_value <= fobjmin`.
+    Returns success rate, n_iter_opt distribution over successful runs,
+    and final_objective_value distribution over failed runs.
+    """
+    successes_iter = []
+    failures_obj = []
+
+    with open(csv_file, newline='') as f:
+        for row in csv.DictReader(f):
+            f_val = float(row['final_objective_value'])
+            n_iter = int(float(row['n_iter_opt']))
+            if f_val <= fobjmin:
+                successes_iter.append(n_iter)
+            else:
+                failures_obj.append(f_val)
+
+    n_total = len(successes_iter) + len(failures_obj)
+    return {
+        'n_total':                  n_total,
+        'n_success':                len(successes_iter),
+        'success_rate':             len(successes_iter) / n_total if n_total else 0.0,
+        'fobjmin':                  fobjmin,
+        'success_n_iter_opt':       _stats_summary(successes_iter),
+        'failure_final_objective':  _stats_summary(failures_obj),
+    }
+
+
+def print_summary(name, result):
+    print(f"\n=== {name} ===")
+    print(f"  total={result['n_total']}  success={result['n_success']}  "
+          f"rate={result['success_rate']*100:.1f}%  (fobjmin={result['fobjmin']:.0e})")
+    s = result['success_n_iter_opt']
+    if s['count']:
+        print(f"  successes: n_iter_opt  mean={s['mean']:.1f}  median={s['median']:.1f}  "
+              f"std={s['std']:.1f}  min={s['min']}  max={s['max']}  "
+              f"q25={s['q25']:.1f}  q75={s['q75']:.1f}")
+    f = result['failure_final_objective']
+    if f['count']:
+        print(f"  failures:  final_F  mean={f['mean']:.3e}  median={f['median']:.3e}  "
+              f"min={f['min']:.3e}  max={f['max']:.3e}")
+
+
 if __name__ == "__main__":
-    # Replace 'your_file.csv' with your actual CSV file path
-    func = 'brown'
-    dcd = 'LIN'
-    csv_path = f"Stats/{func}/{dcd}.csv"
-    
-    # Calculate statistics for all numeric columns
-    # stats = calculate_statistics(csv_path)
-    
-    # Or specify particular columns
-    stats = calculate_statistics(csv_path, columns=['n_iter_opt'])
-    
-    # prin the 
-    print_statistics(stats)
+    stats_dir = "Stats"
+    if not os.path.isdir(stats_dir):
+        print(f"No {stats_dir}/ directory found — run SignedLogUniDist.py first.")
+        raise SystemExit(0)
+
+    for problem in sorted(os.listdir(stats_dir)):
+        if problem not in FOBJMIN:
+            continue
+        for fname in sorted(os.listdir(os.path.join(stats_dir, problem))):
+            if not fname.endswith('.csv'):
+                continue
+            csv_path = os.path.join(stats_dir, problem, fname)
+            encoder = fname[:-4]
+            print_summary(f"{problem}/{encoder}", score_runs(csv_path, FOBJMIN[problem]))
