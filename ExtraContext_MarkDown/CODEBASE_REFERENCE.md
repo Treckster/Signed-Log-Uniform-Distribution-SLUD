@@ -29,7 +29,7 @@ SLUD's selling point: same dimensionality as LIN, log-spaced resolution like LUD
 ```
 repo/
 ├── funcs.py                     # 4 test objectives (rosen, brown, powell, poly7)
-├── SignedUniLogMANYRUNS.py      # SOLE driver: nested loops over (function, encoder, seed), append to Stats/{func}/{encoder}.csv
+├── SignedLogUniDist.py      # SOLE driver: nested loops over (function, encoder, seed), append to Stats/{func}/{encoder}.csv
 ├── plot_dists_example.py        # Generates dists_example.png and dists_example_semilogy.png (linear vs SLUD curve illustration)
 ├── statss.py                    # Read a Stats CSV and compute count/mean/median/std/quartiles/failure-rate for one column
 ├── plots/                       # Generated figures (convergence + distribution illustrations)
@@ -48,7 +48,7 @@ Removed on `EstevanSLUD` (preserved on `main`):
 
 ## 3. The three encoders, precisely
 
-All three live as plain functions at the top of `SignedUniLogMANYRUNS.py`. Signature: `encoder(xis, bounds) -> X` where `xis` is the optimizer's decision vector and `X` is the physical-space vector handed to the objective.
+All three live as plain functions at the top of `SignedLogUniDist.py`. Signature: `encoder(xis, bounds) -> X` where `xis` is the optimizer's decision vector and `X` is the physical-space vector handed to the objective.
 
 ### 3.1 LIN — pass-through
 
@@ -128,7 +128,7 @@ The `sgn` multiplier (`sgn=2` when both signs, `sgn=1` when single sign) appears
 
 ## 5. Optimization loop
 
-Inner body of `SignedUniLogMANYRUNS.py`, run for each `(functoeval, decade_selector, iteration)`:
+Inner body of `SignedLogUniDist.py`, run for each `(functoeval, decade_selector, iteration)`:
 
 1. Pick `decade_selector ∈ {LIN, LUD, SLUD}` and `functoeval ∈ {rosen, brown, powell, poly7}`.
 2. Build `bounds` (Nx3 array `[lb, ub, sign_constraint]`) and the optimizer's `xl, xu` (in log10 for LUD/SLUD, linear for LIN).
@@ -182,16 +182,12 @@ These are surfaced for future-session orientation, not action items — confirm 
 ### Code structure
 - **Massive duplication in the config block.** The if/elif tree for `(functoeval, decade_selector)` is hand-unrolled into 4 problems × 3 encoders ≈ 12 nearly-identical blocks setting `n_vars, ub, lb, bounds, xl, xu`. A `@dataclass` `ProblemSpec` per function + per-encoder `prepare(spec)` would compress this to ~80 lines.
 - **Encoder-aware objectives.** `funcs.py` switches behavior on `len(x)` — adding a new encoder means editing every test function. The encoder, not the objective, should own the `(decision-vec) → (physical-vec-with-sign)` mapping.
-- **Class definitions inside the per-iteration loop** (`evaluate_batch`, `func`, `MyProblem`, `MyCallback`). Hoist them out; nothing in their definition depends on the iteration. Re-applying `@ray.remote` every iteration is the most wasteful instance of this.
-- **Trailing dead code** at the bottom of `SignedUniLogMANYRUNS.py` (lines 432–449): a `print` of `X_opt` and a `convergence_plot.png` save that runs once after all loops and reflects only the last iteration of the last (encoder, function). Leftover from the single-run script — safe to remove.
-- **`SLUD` and `LUD` use Python `for` loops** over the variable index. Trivially vectorizable with numpy ops on the whole bounds array.
-- **Filename `SignedUniLogMANYRUNS.py`** — the "MANYRUNS" suffix made sense when there were two drivers; now that it's the only one, a rename (e.g. `slud_bench.py` or `run.py`) would clarify intent.
 
 ### Performance
 - **Ray for analytical objectives is almost certainly net-negative.** The four test functions are microsecond-scale; Ray's IPC overhead per `evaluate_batch.remote(...)` will dominate. Profile a single-process baseline first; only keep Ray if the per-eval cost grows (e.g. when `poly7` is replaced by an actual CFD/chem-kinetics evaluation).
 - **`batch_size = 10`** is hard-coded; with `pop_size=100` that's 10 Ray tasks per generation. Tune empirically.
 - **LHS sampling cost** is small but is computed every run; benign.
-- **No JIT (numba/jax) and no vectorized objective.** `poly7` calls `np.polyval` on a 100-point grid per individual; a vectorized batch eval (whole population at once) would be 10–100× faster than the per-individual loop.
+- **No JIT (numba/jax) and no vectorized objective.** `poly7` calls `np.polyval` on a 100-point grid per individual; a vectorized batch eval (whole population at once) would be 10–100× faster than the per-individual loop. Encoders (`SLUD`, `LUD`) are now vectorized and broadcast over a 2-D `(pop, n_var)` matrix — `funcs.py` is the remaining serial bottleneck.
 
 ### Statistical methodology (for the "more comparisons" goal)
 - Currently only PSO is used. UNSGA3 is imported but never instantiated.
@@ -223,14 +219,17 @@ These are surfaced for future-session orientation, not action items — confirm 
 
 ## 10. Roadmap pointers (fill in as work proceeds)
 
+Done in v0.1.2-beta (the simplify pass):
+- [x] Vectorize LUD / SLUD encoders
+- [x] Hoist class definitions out of the per-iteration loop; remove trailing dead code
+- [x] Open CSV once per (function, encoder) cell; switch to `csv.DictWriter`
+
+Open:
 - [ ] Decouple objectives from encoder arity (encoder owns sign handling)
 - [ ] Collapse the per-(problem, encoder) configuration into a registry
-- [ ] Vectorize LUD / SLUD encoders
 - [ ] Profile single-process vs Ray on each objective; remove Ray where it loses
 - [ ] Add UNSGA3 / DE / CMA-ES baselines for cross-algorithm comparison
 - [ ] Rewrite `statss.py` to score on objective threshold, not generation count
-- [ ] Hoist class definitions out of the per-iteration loop; remove trailing dead code
-- [ ] Rename `SignedUniLogMANYRUNS.py` to a less awkward name
 - [ ] Add a `requirements.txt` / `pyproject.toml`
 
 ---
