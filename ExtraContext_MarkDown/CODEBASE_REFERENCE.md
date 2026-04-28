@@ -63,49 +63,55 @@ The objective receives `xis` directly. For functions that need a sign, the conve
 
 ```python
 def LUD(xis, bounds):
-    X = np.zeros_like(xis)
-    for i in range(len(xis)//2):           # first half: 10^xi
-        X[i] = 10**xis[i]
-    for i in range(len(xis)//2, len(xis)): # second half: pass-through, used as sign carrier
-        X[i] = xis[i]
+    h = len(xis) // 2
+    X = np.empty_like(xis)
+    X[:h] = 10.0 ** xis[:h]   # first half: log10 magnitudes → physical
+    X[h:] = xis[h:]           # second half: pass-through, used as sign carrier
     return X
 ```
 
-Optimizer's bounds: `xl = [log10(lb_mag), -1]`, `xu = [log10(ub_mag), +1]`. `n_vars` is also doubled. Sign is recovered downstream via `np.sign(x[i+n])` in `funcs.py`.
+Optimizer's bounds: `xl = [log10(lb_mag), -1]`, `xu = [log10(ub_mag), +1]`. `n_vars` is doubled. Sign is recovered downstream via `np.sign(x[i+n])` in `funcs.py`.
 
-### 3.3 SLUD — signed log uniform, single axis
+### 3.3 SLUD — signed log uniform, single unit axis
+
+The optimizer searches a unit axis `[-1, 1]` (or `[0, 1]` / `[-1, 0]` for fixed-sign vars) regardless of the physical magnitude bounds. The encoder is the symmetric signed log map:
+
+```
+X = sign(xi) * MIN * (MAX / MIN)^|xi|
+```
 
 ```python
+def SLUD_Variable_Definition(bounds):
+    """xl,xu per type: T=0 → [-1,1]; T=+1 → [0,1]; T=-1 → [-1,0]."""
+    T = bounds[:, 2].astype(int)
+    xl = np.where(T == 0, -1.0, np.minimum(0, T*2 + 1)).astype(float)
+    xu = np.where(T == 0,  1.0, np.maximum(0, T*2 - 1)).astype(float)
+    return xl, xu
+
 def SLUD(xis, bounds):
-    X = np.zeros_like(xis)
-    lbb, ubb, sbb = bounds[:,0], bounds[:,1], bounds[:,2]
-    for i in range(len(xis)):
-        if sbb[i] in (1, -1):           # single-sign branch (currently DEPRECATED stubs)
-            sign = sbb[i]
-        else:                           # both signs — the interesting case
-            xix       = xis[i]
-            logub     = np.log10(ubb[i]) * 2     # doubled bounds
-            loglb     = np.log10(lbb[i]) * 2
-            halfrange = (logub - loglb) / 2
-            halfmark  = (logub + loglb) / 2      # axis midpoint
-            dist      = xix - halfmark
-            sign      = np.sign(dist)
-            unit_x    = np.abs(dist) / halfrange # |x| normalized to [0, 1]
-        X[i] = sign * lbb[i] * np.power(ubb[i]/lbb[i], np.abs(unit_x))
-    return X
+    MIN, MAX = bounds[:,0].astype(float), bounds[:,1].astype(float)
+    TYP      = bounds[:,2].astype(int)
+    use_linear = (TYP == 0) & (MIN <= 0.0)
+
+    # safe substitutes prevent MAX/MIN blow-up where lin_map will be selected anyway
+    safe_min = np.where(use_linear, 1.0, MIN)
+    safe_max = np.where(use_linear, 1.0, MAX)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        log_map = np.where(xis == 0, MIN,
+                           np.sign(xis) * safe_min * np.power(safe_max/safe_min, np.abs(xis)))
+    lin_map = MIN + 0.5 * (xis + 1.0) * (MAX - MIN)
+    return np.where(use_linear, lin_map, log_map)
 ```
 
-**Conceptual picture** (the geometry that makes SLUD work):
+**Geometry:**
 
-- The optimizer's axis is widened to `[2·log10(lb), 2·log10(ub)]`. With both bounds positive and a positive lower (e.g. `lb=1e-4, ub=1e2`), this yields `[-8, 4]`. Spans 12 units instead of 6.
-- The midpoint `halfmark = (logub + loglb)` (note: not divided — the doubling already placed it correctly) splits the axis into two halves.
-- `dist > 0` → positive sign in physical space. `dist < 0` → negative.
-- `unit_x = |dist|/halfrange` ∈ [0, 1] is the log-distance from midpoint, normalized.
-- Final mapping `lb * (ub/lb)^unit_x` walks log-uniformly from `lb` (at midpoint) to `ub` (at axis edge), then sign is applied.
+- xi=0 → MIN (smallest magnitude). xi=±1 → ±MAX. Log-spaced in between, sign from `np.sign(xi)`.
+- Optimizer axis is symmetric `[-1, 1]` for both-sign vars (no axis-doubling tricks).
+- Special case 1: type-0 with `MIN ≤ 0` (bounds straddle/include zero) — falls back to a plain linear map `[-1, 1] → [MIN, MAX]`. Handles e.g. `[0, 2]` or `[-1, 1]` without diverging at the log.
+- Special case 2: at exactly `xi = 0`, `np.sign(xi)=0` would zero out the result; we substitute `MIN` so the smallest-magnitude position remains representable. (Floating-point `xi==0` is rare in practice but pymoo's LHS can hit it.)
+- The `bounds` array's third column (type) is honored by `SLUD_Variable_Definition`; values currently used in this repo are all 0 (both signs).
 
-So a single normalized axis encodes both magnitude (log-spaced) and sign (which half).
-
-The `sgn` multiplier (`sgn=2` when both signs, `sgn=1` when single sign) appears in the driver scripts when constructing `xl, xu`. With both signs allowed, `xl = log10(lb)*2`, `xu = log10(ub)*2`. With single sign, the doubling collapses. The single-sign branch (`sbb[i] != 0`) is currently labelled `DEPRECATED` in the code and is a candidate for removal or rework.
+**Note on history.** This formulation supersedes a "doubled-axis with halfmark midpoint" version used in the original COB-2025 paper code, where the optimizer searched `[2·log10(lb), 2·log10(ub)]` and sign was inferred from which half of the axis the candidate landed in. The newer form is mathematically equivalent for type-0 in the limit, simpler, symmetric around zero, and natively supports type-±1 without separate logic. See §11 for the older formulation.
 
 ### 3.4 Hidden coupling worth flagging
 
@@ -203,8 +209,7 @@ These are surfaced for future-session orientation, not action items — confirm 
 - **decade selector**: code-internal name for the encoder choice (LIN/LUD/SLUD). Misleading because LIN doesn't deal in decades.
 - **`xis`**: the optimizer's raw decision vector (in `xl, xu` bounds).
 - **`X` (capital)**: the physical-space vector after the encoder, fed to the objective.
-- **`bounds`**: `Nx3` array `[lb_magnitude, ub_magnitude, sign_constraint]`. `sign_constraint`: 0 = both signs, +1 = positive only, -1 = negative only.
-- **`sgn` (in driver code)**: doubling factor for the optimizer axis (2 if both signs, 1 if single sign).
+- **`bounds`**: `Nx3` array `[lb_magnitude, ub_magnitude, type]`. `type`: 0 = both signs, +1 = positive only, -1 = negative only. Used by `SLUD_Variable_Definition` and `SLUD`.
 - **`fobjmin`**: early-termination objective threshold — proxy for "converged".
 
 ---
@@ -234,10 +239,25 @@ Open:
 
 ---
 
-## 11. Former design notes (extracted from removed files)
+## 11. Former design notes
 
-Ideas from the deleted `UniLog(DEPRECATED).py` worth keeping in mind — recoverable from `main` or pre-cleanup history if revisited:
+### From the deleted `UniLog(DEPRECATED).py`
+Recoverable from `main` or pre-cleanup history if revisited:
 
 - **Custom `LogUniformSampling` (pymoo `Sampling` subclass).** Initialized the population by drawing `10**uniform(log10_lo, log10_hi)` for magnitudes and random `±1` for signs, in the LUD-style 2N layout. The current code achieves a similar effect by using `LHS()` over log10-bounds, but an explicit sampler could be useful as another comparison axis (LHS vs uniform-log vs Sobol).
 - **PSO knobs `adaptive=True, pertube_best=True, output=SingleObjectiveOutput()`** were used in the prototype but are not passed by the current driver. Cheap to re-enable for an ablation if PSO behavior becomes a question.
 - The deprecated file used **per-individual** Ray dispatch (`func.remote(x) for x in X`) rather than the current batched-by-10 dispatch. Worth re-profiling both once the objectives are vectorized.
+
+### Former SLUD formulation (paper version)
+The original COB-2025 SLUD widened the optimizer axis to `[2·log10(lb), 2·log10(ub)]` and inferred sign from which half of the axis a candidate landed in:
+
+```
+halfrange = (2·log10(ub) - 2·log10(lb)) / 2
+halfmark  = (2·log10(ub) + 2·log10(lb)) / 2
+dist      = xi - halfmark
+sign      = np.sign(dist)
+unit_x    = |dist| / halfrange         # ∈ [0, 1]
+X         = sign * lb * (ub/lb)^unit_x
+```
+
+Replaced (post-v0.1.2-beta) with the unit-axis form documented in §3.3, ported from the `MFChemVirt_Experimental` project. The new form is symmetric around zero, drops the `sgn = 2 if both signs else 1` axis-doubling bookkeeping, and natively supports type-±1 (single-sign) vars and type-0 vars whose bounds include zero. Existing CSV results in `Stats/` were generated under the *old* formulation and are NOT directly comparable to fresh runs under the new one — re-run any benchmarks before quoting numbers.

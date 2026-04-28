@@ -13,16 +13,47 @@ from pymoo.algorithms.soo.nonconvex.pso import PSO
 import funcs
 
 
+def SLUD_Variable_Definition(bounds):
+    """Optimizer-axis bounds per variable type.
+
+    type ==  0 → [-1, 1]   (both signs)
+    type == +1 → [ 0, 1]   (positive only)
+    type == -1 → [-1, 0]   (negative only)
+    """
+    T = bounds[:, 2].astype(int)
+    xl = np.where(T == 0, -1.0, np.minimum(0, T * 2 + 1)).astype(float)
+    xu = np.where(T == 0,  1.0, np.maximum(0, T * 2 - 1)).astype(float)
+    return xl, xu
+
+
 def SLUD(xis, bounds):
-    lbb, ubb = bounds[:, 0], bounds[:, 1]
-    logub = 2 * np.log10(ubb)
-    loglb = 2 * np.log10(lbb)
-    halfrange = (logub - loglb) / 2
-    halfmark = (logub + loglb) / 2
-    dist = xis - halfmark
-    sign = np.sign(dist)
-    unit_x = np.abs(dist) / halfrange
-    return sign * lbb * np.power(ubb / lbb, unit_x)
+    """Decode optimizer-space xis to physical space.
+
+    Default: signed log map  sign(xi) * MIN * (MAX/MIN)^|xi|
+    Type-0 vars whose bounds include zero (MIN <= 0) use a linear map
+    [-1, 1] → [MIN, MAX] to avoid division by zero / log of non-positive.
+    At xi = 0 the log map is replaced by MIN to dodge sign(0)=0 collapsing
+    the result to zero (which is unreachable in a log-uniform distribution).
+    """
+    xis = np.asarray(xis, dtype=float)
+    MIN = bounds[:, 0].astype(float)
+    MAX = bounds[:, 1].astype(float)
+    TYP = bounds[:, 2].astype(int)
+
+    use_linear = (TYP == 0) & (MIN <= 0.0)
+
+    safe_min = np.where(use_linear, 1.0, MIN)
+    safe_max = np.where(use_linear, 1.0, MAX)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        log_map = np.where(
+            xis == 0,
+            MIN,
+            np.sign(xis) * safe_min * np.power(safe_max / safe_min, np.abs(xis)),
+        )
+
+    lin_map = MIN + 0.5 * (xis + 1.0) * (MAX - MIN)
+
+    return np.where(use_linear, lin_map, log_map)
 
 
 def LUD(xis, bounds):
@@ -86,10 +117,8 @@ for functoeval in ['brown']:
                 ub = [1E2, 1E2]
                 lb = [1E-4, 1E-4]
                 sign = [0, 0]
-                sgn = 2 if all(s == 0 for s in sign) else 1
                 bounds = np.column_stack([lb, ub, sign])
-                xl = np.log10(lb) * sgn
-                xu = np.log10(ub) * sgn
+                xl, xu = SLUD_Variable_Definition(bounds)
             else:
                 n_vars = 4
                 ub = [1E2, 1E2, 1, 1]
@@ -113,10 +142,8 @@ for functoeval in ['brown']:
                 ub = [1E8, 1E8]
                 lb = [1E-8, 1E-8]
                 sign = [0, 0]
-                sgn = 2 if all(s == 0 for s in sign) else 1
                 bounds = np.column_stack([lb, ub, sign])
-                xl = np.log10(lb) * sgn
-                xu = np.log10(ub) * sgn
+                xl, xu = SLUD_Variable_Definition(bounds)
             else:
                 n_vars = 4
                 ub = [1E8, 1E8, 1, 1]
@@ -140,10 +167,8 @@ for functoeval in ['brown']:
                 ub = [1E2, 1E2]
                 lb = [1E-6, 1E-6]
                 sign = [0, 0]
-                sgn = 2 if all(s == 0 for s in sign) else 1
                 bounds = np.column_stack([lb, ub, sign])
-                xl = np.log10(lb) * sgn
-                xu = np.log10(ub) * sgn
+                xl, xu = SLUD_Variable_Definition(bounds)
             else:
                 n_vars = 4
                 ub = [1E2, 1E2, 1, 1]
@@ -167,10 +192,8 @@ for functoeval in ['brown']:
                 ub = [1E2, 1E-1, 1E-4, 1E-7, 1E-10]
                 lb = [1E-2, 1E-5, 1E-8, 1E-11, 1E-14]
                 sign = [0, 0, 0, 0, 0]
-                sgn = 2 if all(s == 0 for s in sign) else 1
                 bounds = np.column_stack([lb, ub, sign])
-                xl = np.log10(lb) * sgn
-                xu = np.log10(ub) * sgn
+                xl, xu = SLUD_Variable_Definition(bounds)
             else:
                 n_vars = 10
                 ub = [1E2, 1E-1, 1E-4, 1E-7, 1E-10, 1, 1, 1, 1, 1]
