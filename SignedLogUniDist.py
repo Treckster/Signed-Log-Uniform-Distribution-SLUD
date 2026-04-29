@@ -202,39 +202,39 @@ def _run_one(args):
 if __name__ == "__main__":
     n_workers = os.cpu_count() or 1
 
-    for prob_name in ACTIVE_PROBLEMS:
-        spec = PROBLEMS[prob_name]
-        n_phys = len(spec.lb_mag)
+    # Single pool reused across every (problem, encoder) cell.
+    with ProcessPoolExecutor(max_workers=n_workers) as pool:
+        for prob_name in ACTIVE_PROBLEMS:
+            spec = PROBLEMS[prob_name]
+            n_phys = len(spec.lb_mag)
 
-        for enc_name in ACTIVE_ENCODERS:
-            encoder, prepare = ENCODERS[enc_name]
-            n_vars, bounds, xl, xu = prepare(spec)
+            for enc_name in ACTIVE_ENCODERS:
+                encoder, prepare = ENCODERS[enc_name]
+                n_vars, bounds, xl, xu = prepare(spec)
 
-            print(f"Evaluating {prob_name} with {n_vars} variables ({enc_name}) on {n_workers} workers")
+                print(f"Evaluating {prob_name} with {n_vars} variables ({enc_name}) on {n_workers} workers")
 
-            func_dir = os.path.join("Stats", prob_name)
-            os.makedirs(func_dir, exist_ok=True)
-            csv_filename = os.path.join(func_dir, f"{enc_name}.csv")
-            fieldnames = (['iteration', 'seed', 'algorithm', 'final_objective_value', 'n_iter_opt']
-                          + [f'x{i}' for i in range(n_phys)])
+                func_dir = os.path.join("Stats", prob_name)
+                os.makedirs(func_dir, exist_ok=True)
+                csv_filename = os.path.join(func_dir, f"{enc_name}.csv")
+                fieldnames = (['iteration', 'seed', 'algorithm', 'final_objective_value', 'n_iter_opt']
+                              + [f'x{i}' for i in range(n_phys)])
 
-            # Build the full list of independent runs for this (problem, encoder) cell.
-            jobs = [
-                (seed, algo_name, n_vars, xl, xu, enc_name, bounds, spec.evalfunc, spec.fobjmin)
-                for algo_name in ACTIVE_ALGOS
-                for seed in range(n_iterations)
-            ]
+                jobs = [
+                    (seed, algo_name, n_vars, xl, xu, enc_name, bounds, spec.evalfunc, spec.fobjmin)
+                    for algo_name in ACTIVE_ALGOS
+                    for seed in range(n_iterations)
+                ]
 
-            with ProcessPoolExecutor(max_workers=n_workers) as pool, \
-                 open(csv_filename, 'w', newline='') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                for seed, algo, F, n_iter, X_phys in pool.map(_run_one, jobs):
-                    writer.writerow({
-                        'iteration': seed,
-                        'seed': seed,
-                        'algorithm': algo,
-                        'final_objective_value': F,
-                        'n_iter_opt': n_iter,
-                        **{f'x{i}': v for i, v in enumerate(X_phys)},
-                    })
+                with open(csv_filename, 'w', newline='') as csvfile:
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    writer.writeheader()
+                    for seed, algo, F, n_iter, X_phys in pool.map(_run_one, jobs):
+                        writer.writerow({
+                            'iteration': seed,
+                            'seed': seed,
+                            'algorithm': algo,
+                            'final_objective_value': F,
+                            'n_iter_opt': n_iter,
+                            **{f'x{i}': v for i, v in enumerate(X_phys)},
+                        })

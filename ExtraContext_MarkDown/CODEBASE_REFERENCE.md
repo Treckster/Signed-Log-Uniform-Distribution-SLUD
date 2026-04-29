@@ -155,7 +155,7 @@ Per iteration:
 3. Termination: `n_gen` reached **OR** `f < fobjmin` (`TerminateIfAny`).
 4. Append one row to `Stats/{problem}/{encoder}.csv`, tagged with `algorithm`.
 
-The (algo, seed) jobs for each (problem, encoder) cell are pushed through a `ProcessPoolExecutor` (default `os.cpu_count()` workers). `_run_one(args)` is a top-level function so workers can pickle-import it; the driver loop is gated on `if __name__ == "__main__":` so worker processes don't recursively re-execute it. Results are returned in submission order, written to the CSV in the main process.
+The (algo, seed) jobs for each (problem, encoder) cell are pushed through a `ProcessPoolExecutor` (default `os.cpu_count()` workers). The pool is constructed **once** at the top of `__main__` and reused across every cell — spawning N forks 12 times costs the same as spawning them once on Linux fork, but on macOS/Windows (spawn) it would be 12× the overhead. `_run_one(args)` is a top-level function so workers can pickle-import it; the driver loop is gated on `if __name__ == "__main__":` so worker processes don't recursively re-execute it. Results are returned in submission order, written to the CSV in the main process.
 
 Defaults: `n_pop=50`, `n_gen=100`, `n_iterations=50` (dev knobs — bump to 100/500/1000 for paper-quality runs), `seed=iteration`. Algorithm pool: `PSO, DE, GA, ES` (CMA-ES skipped — its `x0/sigma` interface differs and would need an adapter). Active sets are list literals at module scope; flip them on/off without touching the loop body.
 
