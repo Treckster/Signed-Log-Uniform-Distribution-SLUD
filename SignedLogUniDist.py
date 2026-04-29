@@ -161,9 +161,9 @@ ENCODERS = {
 }
 
 
-n_pop = 50
-n_gen = 100
-n_iterations = 50
+n_pop = 100
+n_gen = 500
+n_iterations = 300
 
 ALGORITHMS = {
     'PSO': lambda: PSO(pop_size=n_pop, sampling=LHS()),
