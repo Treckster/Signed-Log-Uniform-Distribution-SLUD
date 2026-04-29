@@ -34,6 +34,7 @@ repo/
 ├── funcs.py                     # 4 test objectives (rosen, brown, powell, poly7)
 ├── SignedLogUniDist.py          # SOLE driver: nested loops over (function, encoder, seed), append to Stats/{func}/{encoder}.csv
 ├── plot_dists_example.py        # Generates dists_example.png and dists_example_semilogy.png (linear vs SLUD curve illustration)
+├── plot_matrix.py               # 3×4 (encoder × algo) small-multiples histograms of final F; uses statss.FOBJMIN
 ├── statss.py                    # Score a Stats CSV by the fobjmin success criterion; per-cell summary print
 ├── plots/                       # Generated figures (convergence + distribution illustrations)
 ├── Stats/{func}/{encoder}.csv   # Persisted multi-run results (200 rows each at v0.1-beta)
