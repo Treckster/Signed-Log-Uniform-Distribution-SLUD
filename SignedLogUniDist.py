@@ -1,5 +1,6 @@
 import os
 import csv
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from typing import Callable
 import numpy as np
@@ -176,52 +177,64 @@ ACTIVE_ENCODERS = ['LIN', 'LUD', 'SLUD']
 ACTIVE_ALGOS    = ['PSO', 'DE', 'GA', 'ES']
 
 
-for prob_name in ACTIVE_PROBLEMS:
-    spec = PROBLEMS[prob_name]
-    n_phys = len(spec.lb_mag)
+def _run_one(args):
+    """Single minimize() call. Top-level so workers can import it."""
+    seed, algo_name, n_var, xl, xu, enc_name, bounds, evalfunc, fobjmin = args
+    encoder, _ = ENCODERS[enc_name]
+    problem = SLUDProblem(n_var, xl, xu, encoder, bounds, evalfunc)
+    termination = TerminateIfAny(
+        get_termination("n_gen", n_gen),
+        MinimumFunctionValueTermination(fobjmin),
+    )
+    res = minimize(
+        problem=problem,
+        algorithm=ALGORITHMS[algo_name](),
+        termination=termination,
+        seed=seed,
+        verbose=False,
+        save_history=False,
+        display=None,
+    )
+    X_phys = encoder(res.X, bounds)
+    return seed, algo_name, float(res.F[0]), int(res.algorithm.n_gen), X_phys.tolist()
 
-    for enc_name in ACTIVE_ENCODERS:
-        encoder, prepare = ENCODERS[enc_name]
-        n_vars, bounds, xl, xu = prepare(spec)
 
-        print(f"Evaluating {prob_name} with {n_vars} variables ({enc_name})")
+if __name__ == "__main__":
+    n_workers = os.cpu_count() or 1
 
-        func_dir = os.path.join("Stats", prob_name)
-        os.makedirs(func_dir, exist_ok=True)
-        csv_filename = os.path.join(func_dir, f"{enc_name}.csv")
-        fieldnames = (['iteration', 'seed', 'algorithm', 'final_objective_value', 'n_iter_opt']
-                      + [f'x{i}' for i in range(n_phys)])
+    for prob_name in ACTIVE_PROBLEMS:
+        spec = PROBLEMS[prob_name]
+        n_phys = len(spec.lb_mag)
 
-        with open(csv_filename, 'w', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
+        for enc_name in ACTIVE_ENCODERS:
+            encoder, prepare = ENCODERS[enc_name]
+            n_vars, bounds, xl, xu = prepare(spec)
 
-            for algo_name in ACTIVE_ALGOS:
-                make_algo = ALGORITHMS[algo_name]
+            print(f"Evaluating {prob_name} with {n_vars} variables ({enc_name}) on {n_workers} workers")
 
-                for iteration in range(n_iterations):
-                    problem = SLUDProblem(n_vars, xl, xu, encoder, bounds, spec.evalfunc)
-                    termination = TerminateIfAny(
-                        get_termination("n_gen", n_gen),
-                        MinimumFunctionValueTermination(spec.fobjmin),
-                    )
+            func_dir = os.path.join("Stats", prob_name)
+            os.makedirs(func_dir, exist_ok=True)
+            csv_filename = os.path.join(func_dir, f"{enc_name}.csv")
+            fieldnames = (['iteration', 'seed', 'algorithm', 'final_objective_value', 'n_iter_opt']
+                          + [f'x{i}' for i in range(n_phys)])
 
-                    res = minimize(
-                        problem=problem,
-                        algorithm=make_algo(),
-                        termination=termination,
-                        seed=iteration,
-                        verbose=False,
-                        save_history=False,
-                        display=None,
-                    )
+            # Build the full list of independent runs for this (problem, encoder) cell.
+            jobs = [
+                (seed, algo_name, n_vars, xl, xu, enc_name, bounds, spec.evalfunc, spec.fobjmin)
+                for algo_name in ACTIVE_ALGOS
+                for seed in range(n_iterations)
+            ]
 
-                    X_phys = encoder(res.X, bounds)
+            with ProcessPoolExecutor(max_workers=n_workers) as pool, \
+                 open(csv_filename, 'w', newline='') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                for seed, algo, F, n_iter, X_phys in pool.map(_run_one, jobs):
                     writer.writerow({
-                        'iteration': iteration,
-                        'seed': iteration,
-                        'algorithm': algo_name,
-                        'final_objective_value': res.F[0],
-                        'n_iter_opt': res.algorithm.n_gen,
+                        'iteration': seed,
+                        'seed': seed,
+                        'algorithm': algo,
+                        'final_objective_value': F,
+                        'n_iter_opt': n_iter,
                         **{f'x{i}': v for i, v in enumerate(X_phys)},
                     })
