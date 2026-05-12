@@ -1,19 +1,19 @@
 """Matrix plot: encoder × algorithm. Each cell shows the distribution of
 final objective F for one (encoder, algorithm) pair. Top-left cell is
-annotated to explain the layout."""
+annotated to explain the layout. Renders one PNG per problem found in
+`Stats/`, or just the problems passed as CLI args."""
 
 import csv
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 import statss  # for FOBJMIN dict
 
-PROBLEM = 'brown'
 ENCODERS = ['LIN', 'LUD', 'SLUD']
 ALGOS = ['PSO', 'DE', 'GA', 'ES']
-FOBJMIN = statss.FOBJMIN[PROBLEM]
 
 
 def load(problem):
@@ -32,11 +32,13 @@ def load(problem):
     return data
 
 
-def main():
-    data = load(PROBLEM)
+def render(problem):
+    fobjmin = statss.FOBJMIN[problem]
+    data = load(problem)
     all_F = [v for vals in data.values() for v in vals]
     if not all_F:
-        raise SystemExit(f"No data found in Stats/{PROBLEM}/*.csv")
+        print(f"skipped {problem}: no data in Stats/{problem}/*.csv")
+        return
 
     F_min = max(min(all_F), 1e-30)
     log_min = float(np.floor(np.log10(F_min)))
@@ -49,8 +51,8 @@ def main():
         sharex=True, sharey=False,
     )
     fig.suptitle(
-        f"{PROBLEM}: final objective F distribution per (encoder × algorithm)\n"
-        f"fobjmin = {FOBJMIN:.0e} (red dashed line)\n"
+        f"{problem}: final objective F distribution per (encoder × algorithm)\n"
+        f"fobjmin = {fobjmin:.0e} (red dashed line)\n"
         f"top-left cell annotated as a legend for the rest",
         fontsize=11,
     )
@@ -67,9 +69,9 @@ def main():
             ax.hist(F_vals, bins=bins, color='steelblue',
                     edgecolor='black', alpha=0.75)
             ax.set_xscale('log')
-            ax.axvline(FOBJMIN, color='red', linestyle='--', linewidth=1.5)
+            ax.axvline(fobjmin, color='red', linestyle='--', linewidth=1.5)
 
-            n_success = sum(1 for v in F_vals if v <= FOBJMIN)
+            n_success = sum(1 for v in F_vals if v <= fobjmin)
             rate = n_success / len(F_vals) * 100
             ax.text(
                 0.97, 0.95,
@@ -90,8 +92,8 @@ def main():
     legend_ax = axes[0, 0]
     legend_ax.annotate(
         'fobjmin\n(success threshold)',
-        xy=(FOBJMIN, legend_ax.get_ylim()[1] * 0.6),
-        xytext=(FOBJMIN * 1e-6, legend_ax.get_ylim()[1] * 0.85),
+        xy=(fobjmin, legend_ax.get_ylim()[1] * 0.6),
+        xytext=(fobjmin * 1e-6, legend_ax.get_ylim()[1] * 0.85),
         arrowprops=dict(arrowstyle='->', color='red', lw=1.2),
         color='red', fontsize=8, ha='left',
     )
@@ -113,10 +115,22 @@ def main():
     )
 
     fig.tight_layout(rect=[0, 0, 1, 0.94])
-    out = f"plots/matrix_{PROBLEM}.png"
+    out = f"plots/matrix_{problem}.png"
     os.makedirs("plots", exist_ok=True)
     fig.savefig(out, dpi=150, bbox_inches='tight')
+    plt.close(fig)
     print(f"saved {out}")
+
+
+def main():
+    if len(sys.argv) > 1:
+        problems = sys.argv[1:]
+    else:
+        problems = sorted(p for p in os.listdir("Stats")
+                          if p in statss.FOBJMIN
+                          and os.path.isdir(os.path.join("Stats", p)))
+    for problem in problems:
+        render(problem)
 
 
 if __name__ == "__main__":

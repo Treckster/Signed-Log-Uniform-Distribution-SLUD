@@ -4,6 +4,7 @@ from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from typing import Callable
 import numpy as np
+from tqdm import tqdm
 from pymoo.optimize import minimize
 from pymoo.core.problem import Problem
 from pymoo.core.termination import TerminateIfAny
@@ -172,7 +173,7 @@ ALGORITHMS = {
     'ES':  lambda: ES(pop_size=n_pop,  sampling=LHS()),
 }
 
-ACTIVE_PROBLEMS = ['brown']
+ACTIVE_PROBLEMS = ['rosen', 'powell', 'poly7']
 ACTIVE_ENCODERS = ['LIN', 'LUD', 'SLUD']
 ACTIVE_ALGOS    = ['PSO', 'DE', 'GA', 'ES']
 
@@ -229,7 +230,12 @@ if __name__ == "__main__":
                 with open(csv_filename, 'w', newline='') as csvfile:
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     writer.writeheader()
-                    for seed, algo, F, n_iter, X_phys in pool.map(_run_one, jobs):
+                    for seed, algo, F, n_iter, X_phys in tqdm(
+                        pool.map(_run_one, jobs),
+                        total=len(jobs),
+                        desc=f"{prob_name}/{enc_name}",
+                        unit="run",
+                    ):
                         writer.writerow({
                             'iteration': seed,
                             'seed': seed,
