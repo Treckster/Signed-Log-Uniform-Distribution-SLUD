@@ -1,6 +1,5 @@
 # SLUD — Signed Log-Uniform Distribution
 
-> **Para o orientador (pitch em pt-BR):**
 > Muitos problemas de engenharia exigem otimizar parâmetros que variam em
 > **várias ordens de grandeza** e que podem ter **sinal positivo ou negativo**
 > (ex.: coeficientes de polinômios termodinâmicos, constantes cinéticas). As
