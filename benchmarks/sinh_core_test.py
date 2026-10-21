@@ -73,14 +73,16 @@ def main():
 
 
 def save(results, out):
-    """One row per run, final-budget HV ratio, with the encoding and lb factor as separate columns."""
+    """One row per run and report budget; hv_ratio is the HV ratio after n_eval evaluations."""
     os.makedirs(out, exist_ok=True)
     with open(os.path.join(out, "runs.csv"), "w", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow(["case", "variant", "encoding", "lb_factor", "seed", "hv_ratio"])
+        writer.writerow(["case", "variant", "encoding", "lb_factor", "seed", "n_eval", "is_final", "hv_ratio"])
         for case, variant, seed, hv in results:
             encoding, lb_factor = VARIANTS[variant]
-            writer.writerow([case, variant, encoding.__name__, lb_factor, seed, hv[-1]])
+            report = CASES[case][4]
+            for g, value in zip(report, hv):
+                writer.writerow([case, variant, encoding.__name__, lb_factor, seed, (g + 1) * 100, int(g == report[-1]), value])
 
 
 if __name__ == "__main__":

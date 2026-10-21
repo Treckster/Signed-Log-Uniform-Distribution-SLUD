@@ -66,7 +66,7 @@ def main():
     args = parser.parse_args()
 
     runs = pd.read_csv(args.runs_csv)
-    runs = runs[runs.encoding.isin(["SLUD", "SINH"])]
+    runs = runs[runs.encoding.isin(["SLUD", "SINH"]) & (runs.is_final == 1)]
     pd.set_option("display.float_format", "{:.4g}".format)
 
     fig, axes = plt.subplots(1, runs.case.nunique(), figsize=(12, 5))
