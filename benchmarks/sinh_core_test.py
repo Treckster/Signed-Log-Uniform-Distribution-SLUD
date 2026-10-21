@@ -44,9 +44,17 @@ VARIANTS = {
 }
 
 
+def generations(case, max_gen_override):
+    """Run length and report points; an override shortens the run (screening) and keeps earlier report points."""
+    _, _, _, max_gen, report = CASES[case]
+    max_gen = max_gen_override or max_gen
+    return max_gen, sorted({g for g in report if g < max_gen} | {max_gen - 1})
+
+
 def run_job(job):
-    case, variant, seed = job
-    objectives, lb, ub, max_gen, report = CASES[case]
+    case, variant, seed, max_gen_override = job
+    objectives, lb, ub, _, _ = CASES[case]
+    max_gen, report = generations(case, max_gen_override)
     encoding, lb_factor = VARIANTS[variant]
     r = run_nsga3(objectives, encoding(lb * lb_factor, ub), n_obj=2, seed=seed, max_gen=max_gen)
     return case, variant, seed, [HV_RATIO[case](r["trace_F"][g]) for g in report]
@@ -58,26 +66,27 @@ def main():
     parser.add_argument("--first-seed", type=int, default=0)
     parser.add_argument("--cases", nargs="+", default=list(CASES), choices=list(CASES))
     parser.add_argument("--variants", nargs="+", default=list(VARIANTS), choices=list(VARIANTS))
+    parser.add_argument("--max-gen", type=int, help="shorter runs for screening; default: each case's full budget")
     parser.add_argument("--workers", type=int, default=os.cpu_count())
     parser.add_argument("--out", default="results/sinh_core_test")
     args = parser.parse_args()
 
     seeds = range(args.first_seed, args.first_seed + args.runs)
-    jobs = [(c, v, s) for c in args.cases for v in args.variants for s in seeds]
+    jobs = [(c, v, s, args.max_gen) for c in args.cases for v in args.variants for s in seeds]
     with ProcessPoolExecutor(args.workers) as pool:
         results = list(pool.map(run_job, jobs))
 
     print(f"HV ratio vs exact/pymoo front, median [min - max] over {args.runs} seeds")
     for case in args.cases:
-        report = CASES[case][4]
+        report = generations(case, args.max_gen)[1]
         print(f"\n{case:12} {'':14} " + " ".join(f"{(g + 1) * 100:>22d}" for g in report) + "  evals")
         for v in args.variants:
             hv = np.array([r[3] for r in results if r[0] == case and r[1] == v])
             print(f"{'':12} {v:14} " + " ".join(f"{np.median(c):.3f} [{c.min():.3f}-{c.max():.3f}]".rjust(22) for c in hv.T))
-    save(results, args.out)
+    save(results, args.out, args.max_gen)
 
 
-def save(results, out):
+def save(results, out, max_gen_override):
     """One row per run and report budget; hv_ratio is the HV ratio after n_eval evaluations."""
     os.makedirs(out, exist_ok=True)
     with open(os.path.join(out, "runs.csv"), "w", newline="") as file:
@@ -85,7 +94,7 @@ def save(results, out):
         writer.writerow(["case", "variant", "encoding", "lb_factor", "seed", "n_eval", "is_final", "hv_ratio"])
         for case, variant, seed, hv in results:
             encoding, lb_factor = VARIANTS[variant]
-            report = CASES[case][4]
+            report = generations(case, max_gen_override)[1]
             for g, value in zip(report, hv):
                 writer.writerow([case, variant, encoding.__name__, lb_factor, seed, (g + 1) * 100, int(g == report[-1]), value])
 
