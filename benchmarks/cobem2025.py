@@ -50,14 +50,15 @@ def pad(arrays):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--runs", type=int, default=200, help="seeds 0..runs-1 per case and encoding")
+    parser.add_argument("--runs", type=int, default=200, help="number of seeds per case and encoding")
+    parser.add_argument("--first-seed", type=int, default=0, help="seeds first-seed .. first-seed+runs-1")
     parser.add_argument("--workers", type=int, default=os.cpu_count())
     parser.add_argument("--cases", nargs="+", default=list(CASES), choices=list(CASES))
     parser.add_argument("--encodings", nargs="+", default=list(ENCODINGS), choices=list(ENCODINGS))
     parser.add_argument("--out", default="results/cobem2025")
     args = parser.parse_args()
 
-    jobs = list(itertools.product(args.cases, args.encodings, range(args.runs)))
+    jobs = list(itertools.product(args.cases, args.encodings, range(args.first_seed, args.first_seed + args.runs)))
     print(f"{len(jobs)} runs on {args.workers} processes")
     start = time.time()
     with ProcessPoolExecutor(args.workers) as pool:

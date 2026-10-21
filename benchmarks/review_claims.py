@@ -10,6 +10,11 @@ B. NSGA-III, cp_tradeoff and kursawe, 21 seeds (results/sinh_core_test/runs.csv)
    Mann-Whitney U test, A12 = P(SLUD run beats the other run), runs needed (t-test approximation)
 C. Kursawe as a yes/no outcome (found the whole front: HV ratio >= 0.99)
    success counts, logistic regression success ~ encoding * lb, Fisher exact tests
+D. Equivalence of SLUD and SINH (TOST: two one-sided tests)
+   "equivalent" when the difference is shown to lie inside +-margin (p_tost < 0.05)
+   margins: +-5 percentage points of success rate, +-0.05 HV ratio
+
+Extra seeds from later runs are read from every results/cobem2025*/ and results/sinh_core_test*/ folder.
 
 All p-values within A and within B are Holm-corrected (p_holm).
 """
@@ -23,10 +28,13 @@ import statsmodels.formula.api as smf
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 from statsmodels.stats.power import NormalIndPower, TTestIndPower
-from statsmodels.stats.proportion import confint_proportions_2indep, proportion_effectsize
+from statsmodels.stats.proportion import confint_proportions_2indep, proportion_effectsize, tost_proportions_2indep
+from statsmodels.stats.weightstats import ttost_ind
 
 RNG = np.random.default_rng(0)
 POWER, ALPHA = 0.8, 0.05
+SUCCESS_MARGIN = 0.05  # equivalence margin, success rate
+HV_MARGIN = 0.05  # equivalence margin, HV ratio
 pd.set_option("display.width", 200)
 pd.set_option("display.float_format", "{:.3g}".format)
 
@@ -57,12 +65,14 @@ def bootstrap_ert_ratio(other, ref, n_boot=2000):
     return np.percentile(ratios, [2.5, 97.5])
 
 
-def section_a():
-    files = glob.glob("results/cobem2025/*.csv") + glob.glob("results/cobem2025_sinh/*.csv")
+def load_pso_runs():
+    files = glob.glob("results/cobem2025*/*.csv")
     runs = pd.concat([pd.read_csv(f).assign(case=os.path.basename(f)[:-4]) for f in files])
     pooled = runs[runs.case.isin(["powell", "powell-"])].assign(case="powell pooled")
-    runs = pd.concat([runs, pooled])
+    return pd.concat([runs, pooled])
 
+
+def section_a(runs):
     rows = []
     for case, data in runs.groupby("case"):
         ref = data[data.encoding == "SLUD"]
@@ -73,7 +83,7 @@ def section_a():
             ert_ref, ert_other = ert(ref.success.values, ref.n_eval.values), ert(other.success.values, other.n_eval.values)
             ratio_low, ratio_high = bootstrap_ert_ratio(other, ref)
             rows.append({
-                "case": case, "vs": other_name,
+                "case": case, "vs": other_name, "runs": f"{n1}/{n2}",
                 "SLUD %": 100 * k1 / n1, "other %": 100 * k2 / n2,
                 "diff % [95% CI]": f"{100 * (k1 / n1 - k2 / n2):+.1f} [{100 * low:+.1f}, {100 * high:+.1f}]",
                 "p_fisher": stats.fisher_exact([[k1, n1 - k1], [k2, n2 - k2]]).pvalue,
@@ -81,7 +91,7 @@ def section_a():
                 "runs/arm needed": runs_needed_proportions(k1 / n1, k2 / n2),
             })
     table = pd.DataFrame(rows)
-    table.insert(6, "p_holm", multipletests(table.p_fisher, method="holm")[1])
+    table.insert(7, "p_holm", multipletests(table.p_fisher, method="holm")[1])
     print("\n=== A. PSO, COBEM cases: SLUD vs each other encoding (success rate and ERT) ===")
     print(table.to_string(index=False))
 
@@ -99,14 +109,14 @@ def section_b(runs):
         for other_name in ["PLAIN", "LUD", "SINH"]:
             other = data[data.encoding == other_name].hv_ratio.values
             rows.append({
-                "case": case, "n_eval": n_eval, "vs": other_name,
+                "case": case, "n_eval": n_eval, "vs": other_name, "runs": f"{len(ref)}/{len(other)}",
                 "SLUD median": np.median(ref), "other median": np.median(other),
                 "A12": a12(ref, other),
                 "p_mw": stats.mannwhitneyu(ref, other).pvalue,
                 "runs/arm needed": runs_needed_means(ref, other),
             })
     table = pd.DataFrame(rows)
-    table.insert(6, "p_holm", multipletests(table.p_mw, method="holm")[1])
+    table.insert(7, "p_holm", multipletests(table.p_mw, method="holm")[1])
     print("\n=== B. NSGA-III, HV ratio: SLUD vs each other encoding (lb as given) ===")
     print(table.to_string(index=False))
 
@@ -130,11 +140,30 @@ def section_c(runs):
         print(f"Fisher, {label:32} {ka}/{na} vs {kb}/{nb}, p = {p:.3g}, runs/arm needed = {runs_needed_proportions(ka / na, kb / nb):.0f}")
 
 
+def section_d(pso_runs, nsga_runs):
+    print(f"\n=== D. Equivalence, SLUD vs SINH (TOST): margins +-{SUCCESS_MARGIN:.0%} success, +-{HV_MARGIN} HV ratio ===")
+    for case, data in pso_runs.groupby("case"):
+        a, b = data[data.encoding == "SLUD"], data[data.encoding == "SINH"]
+        with np.errstate(divide="ignore", invalid="ignore"):
+            p = tost_proportions_2indep(a.success.sum(), len(a), b.success.sum(), len(b), -SUCCESS_MARGIN, SUCCESS_MARGIN).pvalue
+        verdict = "equivalent" if p < ALPHA else "not shown"
+        print(f"PSO      {case:14} success {a.success.mean():.1%} vs {b.success.mean():.1%}  p_tost = {p:.3g}  {verdict}")
+    final = nsga_runs[(nsga_runs.is_final == 1) & (nsga_runs.lb_factor == 1.0)]
+    for case, data in final.groupby("case"):
+        a = data[data.encoding == "SLUD"].hv_ratio.values
+        b = data[data.encoding == "SINH"].hv_ratio.values
+        p = ttost_ind(a, b, -HV_MARGIN, HV_MARGIN, usevar="unequal")[0]
+        verdict = "equivalent" if p < ALPHA else "not shown"
+        print(f"NSGA-III {case:14} mean HV {a.mean():.3f} vs {b.mean():.3f}  p_tost = {p:.3g}  {verdict}")
+
+
 def main():
-    section_a()
-    runs = pd.read_csv("results/sinh_core_test/runs.csv")
-    section_b(runs)
-    section_c(runs)
+    pso_runs = load_pso_runs()
+    nsga_runs = pd.concat([pd.read_csv(f) for f in glob.glob("results/sinh_core_test*/runs.csv")])
+    section_a(pso_runs)
+    section_b(nsga_runs)
+    section_c(nsga_runs)
+    section_d(pso_runs, nsga_runs)
 
 
 if __name__ == "__main__":

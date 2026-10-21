@@ -55,18 +55,23 @@ def run_job(job):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--runs", type=int, default=11)
+    parser.add_argument("--first-seed", type=int, default=0)
+    parser.add_argument("--cases", nargs="+", default=list(CASES), choices=list(CASES))
+    parser.add_argument("--variants", nargs="+", default=list(VARIANTS), choices=list(VARIANTS))
     parser.add_argument("--workers", type=int, default=os.cpu_count())
     parser.add_argument("--out", default="results/sinh_core_test")
     args = parser.parse_args()
 
-    jobs = [(c, v, s) for c in CASES for v in VARIANTS for s in range(args.runs)]
+    seeds = range(args.first_seed, args.first_seed + args.runs)
+    jobs = [(c, v, s) for c in args.cases for v in args.variants for s in seeds]
     with ProcessPoolExecutor(args.workers) as pool:
         results = list(pool.map(run_job, jobs))
 
     print(f"HV ratio vs exact/pymoo front, median [min - max] over {args.runs} seeds")
-    for case, (_, _, _, _, report) in CASES.items():
+    for case in args.cases:
+        report = CASES[case][4]
         print(f"\n{case:12} {'':14} " + " ".join(f"{(g + 1) * 100:>22d}" for g in report) + "  evals")
-        for v in VARIANTS:
+        for v in args.variants:
             hv = np.array([r[3] for r in results if r[0] == case and r[1] == v])
             print(f"{'':12} {v:14} " + " ".join(f"{np.median(c):.3f} [{c.min():.3f}-{c.max():.3f}]".rjust(22) for c in hv.T))
     save(results, args.out)
