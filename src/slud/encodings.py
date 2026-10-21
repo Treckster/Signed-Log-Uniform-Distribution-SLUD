@@ -116,4 +116,4 @@ class PLAIN:
         return Z
 
 
-ENCODINGS = {"SLUD": SLUD, "SINH": SINH, "LUD": LUD, "LIN": LIN}
+ENCODINGS = {"SLUD": SLUD, "SINH": SINH, "LUD": LUD, "LIN": LIN, "PLAIN": PLAIN}

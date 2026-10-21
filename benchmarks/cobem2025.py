@@ -1,6 +1,7 @@
 """Re-run the COBEM 2025 study (PSO; SLUD vs LUD vs LIN) with the slud package.
 
     uv run benchmarks/cobem2025.py --runs 200
+    uv run benchmarks/cobem2025.py --algorithm cmaes --out results/cmaes   # same cases, IPOP-CMA-ES
 
 Writes, in --out (default results/cobem2025):
     <case>.csv   one row per run: encoding, seed, success, n_eval, f_best, x_best
@@ -9,7 +10,6 @@ Writes, in --out (default results/cobem2025):
 
 import argparse
 import csv
-import itertools
 import os
 import time
 from concurrent.futures import ProcessPoolExecutor
@@ -18,10 +18,11 @@ import numpy as np
 
 from slud import problems
 from slud.encodings import ENCODINGS
-from slud.optimize import run_pso
+from slud.optimize import run_cmaes, run_pso
 
 POP_SIZE = 100
 MAX_GEN = 500
+MAX_EVALS = POP_SIZE * (MAX_GEN + 1)  # same budget for CMA-ES as for PSO
 
 # Same bounds and targets as the COBEM 2025 paper.
 # name:      objective                        magnitude lb                        magnitude ub                    f_target
@@ -36,9 +37,11 @@ CASES = {
 
 
 def run_job(job):
-    case, encoding_name, seed = job
+    case, encoding_name, seed, algorithm = job
     objective, lb, ub, f_target = CASES[case]
     encoding = ENCODINGS[encoding_name](lb, ub)
+    if algorithm == "cmaes":
+        return case, encoding_name, run_cmaes(objective, encoding, f_target, seed, MAX_EVALS)
     return case, encoding_name, run_pso(objective, encoding, f_target, seed, POP_SIZE, MAX_GEN)
 
 
@@ -55,10 +58,12 @@ def main():
     parser.add_argument("--workers", type=int, default=os.cpu_count())
     parser.add_argument("--cases", nargs="+", default=list(CASES), choices=list(CASES))
     parser.add_argument("--encodings", nargs="+", default=list(ENCODINGS), choices=list(ENCODINGS))
+    parser.add_argument("--algorithm", default="pso", choices=["pso", "cmaes"])
     parser.add_argument("--out", default="results/cobem2025")
     args = parser.parse_args()
 
-    jobs = list(itertools.product(args.cases, args.encodings, range(args.first_seed, args.first_seed + args.runs)))
+    seeds = range(args.first_seed, args.first_seed + args.runs)
+    jobs = [(c, e, s, args.algorithm) for c in args.cases for e in args.encodings for s in seeds]
     print(f"{len(jobs)} runs on {args.workers} processes")
     start = time.time()
     with ProcessPoolExecutor(args.workers) as pool:

@@ -2,6 +2,7 @@
 
 import numpy as np
 from pymoo.algorithms.moo.nsga3 import NSGA3
+from pymoo.algorithms.soo.nonconvex.cmaes import CMAES
 from pymoo.algorithms.soo.nonconvex.pso import PSO
 from pymoo.config import Config
 from pymoo.core.callback import Callback
@@ -69,6 +70,31 @@ def run_pso(objective, encoding, f_target, seed, pop_size=100, max_gen=500):
     res = minimize(
         EncodedProblem(objective, encoding),
         PSO(pop_size=pop_size, sampling=LHS()),
+        termination,
+        seed=seed,
+        callback=trace,
+    )
+    return {
+        "seed": seed,
+        "success": bool(res.F[0] <= f_target),
+        "n_eval": res.algorithm.evaluator.n_eval,
+        "f_best": res.F[0],
+        "x_best": encoding.decode(res.X),
+        "trace_n_eval": np.array(trace.n_eval),
+        "trace_f_best": np.array(trace.f_best),
+    }
+
+
+def run_cmaes(objective, encoding, f_target, seed, max_evals=50_100):
+    """IPOP-CMA-ES (restarts with doubled population); stops at f <= f_target or max_evals."""
+    termination = TerminateIfAny(
+        get_termination("n_eval", max_evals),
+        MinimumFunctionValueTermination(f_target),
+    )
+    trace = BestSoFar()
+    res = minimize(
+        EncodedProblem(objective, encoding),
+        CMAES(restarts=20, incpopsize=2),
         termination,
         seed=seed,
         callback=trace,
