@@ -53,10 +53,11 @@ def main():
     parser.add_argument("--runs", type=int, default=200, help="seeds 0..runs-1 per case and encoding")
     parser.add_argument("--workers", type=int, default=os.cpu_count())
     parser.add_argument("--cases", nargs="+", default=list(CASES), choices=list(CASES))
+    parser.add_argument("--encodings", nargs="+", default=list(ENCODINGS), choices=list(ENCODINGS))
     parser.add_argument("--out", default="results/cobem2025")
     args = parser.parse_args()
 
-    jobs = list(itertools.product(args.cases, ENCODINGS, range(args.runs)))
+    jobs = list(itertools.product(args.cases, args.encodings, range(args.runs)))
     print(f"{len(jobs)} runs on {args.workers} processes")
     start = time.time()
     with ProcessPoolExecutor(args.workers) as pool:
@@ -73,7 +74,7 @@ def main():
             for c, encoding_name, r in results:
                 if c == case:
                     writer.writerow([encoding_name, r["seed"], int(r["success"]), r["n_eval"], r["f_best"], *r["x_best"]])
-        for encoding_name in ENCODINGS:
+        for encoding_name in args.encodings:
             runs = [r for c, e, r in results if c == case and e == encoding_name]
             traces[f"{case}/{encoding_name}/n_eval"] = pad([r["trace_n_eval"] for r in runs])
             traces[f"{case}/{encoding_name}/f_best"] = pad([r["trace_f_best"] for r in runs])

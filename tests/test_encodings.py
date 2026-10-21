@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from slud import LIN, LUD, SLUD
+from slud import LIN, LUD, SINH, SLUD
 
 LB = np.array([1e-8, 1e-2])
 UB = np.array([1e8, 1e2])
@@ -53,3 +53,20 @@ def test_lud_and_lin_use_two_variables_per_value():
 def test_bad_bounds_raise(lb, ub):
     with pytest.raises(ValueError):
         SLUD(lb, ub)
+
+
+def test_sinh_end_points_zero_and_symmetry():
+    enc = SINH(LB, UB)
+    np.testing.assert_allclose(enc.decode(np.ones(2)), UB)
+    np.testing.assert_allclose(enc.decode(-np.ones(2)), -UB)
+    np.testing.assert_allclose(enc.decode(np.zeros(2)), 0.0)
+    u = np.linspace(-1, 1, 401)[:, None] * np.ones(2)
+    assert np.all(np.diff(enc.decode(u), axis=0) > 0)
+
+
+def test_sinh_matches_slud_away_from_zero():
+    # far from the core, SINH(lb=c) is SLUD with lb = c/2 (sinh z -> e^z / 2)
+    u = np.linspace(0.3, 1, 50)[:, None]
+    x_sinh = SINH([1e-6], [1e6]).decode(u)
+    x_slud = SLUD([0.5e-6], [1e6]).decode(u)
+    np.testing.assert_allclose(x_sinh, x_slud, rtol=1e-6)

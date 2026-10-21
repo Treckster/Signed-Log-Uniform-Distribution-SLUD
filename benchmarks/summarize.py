@@ -33,15 +33,16 @@ def main():
             continue
         case = file_name[:-4]
         rows = read_csv(os.path.join(args.out, file_name))
-        for encoding in ["SLUD", "LUD", "LIN"]:
+        for encoding in dict.fromkeys(r["encoding"] for r in rows):
             runs = [r for r in rows if r["encoding"] == encoding]
             success = np.array([int(r["success"]) for r in runs], dtype=bool)
             n_eval = np.array([int(r["n_eval"]) for r in runs])
             ert = n_eval.sum() / success.sum() if success.any() else np.inf
             median = np.median(n_eval[success]) if success.any() else np.nan
 
-            old = read_csv(os.path.join(OLD_DIR, OLD_NAME.get(case, case), f"{encoding}.csv"))
-            old_success = np.mean([int(r["n_iter_opt"]) < OLD_FAILED_GEN for r in old]) * 100
+            old_path = os.path.join(OLD_DIR, OLD_NAME.get(case, case), f"{encoding}.csv")
+            old = read_csv(old_path) if os.path.exists(old_path) else []  # SINH did not exist at COBEM
+            old_success = np.mean([int(r["n_iter_opt"]) < OLD_FAILED_GEN for r in old]) * 100 if old else np.nan
 
             print(f"{case:9} {encoding:5} {len(runs):5d} {success.mean() * 100:9.1f} {ert:10.0f} {median:13.0f} | {old_success:15.1f}")
 

@@ -45,6 +45,25 @@ class SLUD:
         return sign_of(Z) * self.lb * (self.ub / self.lb) ** np.abs(Z)
 
 
+class SINH:
+    """SLUD with a linear core: ONE variable u in [-1, 1] per physical value.
+
+        x = lb * sinh(u * asinh(ub/lb))
+
+    |x| >> lb: log-uniform, like SLUD.   |x| << lb: linear, so x = 0 is reachable
+    and the sign changes smoothly. u = 0 gives 0, u = +-1 gives +-ub.
+    """
+
+    def __init__(self, lb, ub):
+        self.lb, self.ub = check_bounds(lb, ub)
+        self.n_var = self.lb.size
+        self.xl = -np.ones(self.n_var)
+        self.xu = np.ones(self.n_var)
+
+    def decode(self, Z):
+        return self.lb * np.sinh(Z * np.arcsinh(self.ub / self.lb))
+
+
 class LUD:
     """Log-uniform magnitude plus a separate sign variable: TWO variables per value.
 
@@ -97,4 +116,4 @@ class PLAIN:
         return Z
 
 
-ENCODINGS = {"SLUD": SLUD, "LUD": LUD, "LIN": LIN}
+ENCODINGS = {"SLUD": SLUD, "SINH": SINH, "LUD": LUD, "LIN": LIN}
