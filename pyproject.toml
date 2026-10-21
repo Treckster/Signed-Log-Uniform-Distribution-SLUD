@@ -1,0 +1,17 @@
+[project]
+name = "slud"
+version = "0.1.0"
+description = "Signed log-uniform encoding of decision variables for black-box optimizers"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26"]
+
+[project.optional-dependencies]
+pymoo = ["pymoo>=0.6.1"]
+
+[dependency-groups]
+dev = ["pymoo>=0.6.1", "pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
