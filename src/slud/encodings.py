@@ -81,4 +81,20 @@ class LIN:
         return sign_of(Z[..., n:]) * Z[..., :n]
 
 
+class PLAIN:
+    """Plain linear: ONE variable per value, uniform on [-ub, ub]. lb is only checked, not used.
+
+    This is the usual way to bound a signed variable (pymoo's own test problems do it).
+    """
+
+    def __init__(self, lb, ub):
+        self.lb, self.ub = check_bounds(lb, ub)
+        self.n_var = self.ub.size
+        self.xl = -self.ub
+        self.xu = self.ub
+
+    def decode(self, Z):
+        return Z
+
+
 ENCODINGS = {"SLUD": SLUD, "LUD": LUD, "LIN": LIN}

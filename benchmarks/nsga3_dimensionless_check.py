@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import nsga3_cp_tradeoff as base
 
 from slud import problems
-from slud.encodings import LIN, LUD, SLUD, check_bounds
+from slud.encodings import LIN, LUD, PLAIN, SLUD
 from slud.optimize import run_nsga3
 
 SCALE = 1000.0 ** np.arange(4)  # b_k = a_k * SCALE_k
@@ -32,19 +32,6 @@ DIMLESS_LB = [1e-2] * 4
 DIMLESS_UB = [1e2] * 4
 MAX_GEN = 1500
 BUDGET_GENS = [99, 299, MAX_GEN - 1]  # 10k, 30k, 150k evaluations
-
-
-class PLAIN:
-    """Plain linear: ONE variable per value, uniform on [-ub, ub] (lb only checked)."""
-
-    def __init__(self, lb, ub):
-        self.lb, self.ub = check_bounds(lb, ub)
-        self.n_var = self.ub.size
-        self.xl = -self.ub
-        self.xu = self.ub
-
-    def decode(self, Z):
-        return Z
 
 
 class Dimensionless:
