@@ -53,3 +53,36 @@ def cp_fit_c3h8(X):
     """
     cp = X @ T_POWERS.T
     return np.mean((cp / CP_REF - 1.0) ** 2, axis=-1)
+
+
+# Two-objective trade-off: a CUBIC cp/R(T) cannot match propane below and above 500 K at once.
+LOW_T = T_GRID <= 500.0
+CUBIC_POWERS = T_POWERS[:, :4]
+
+
+def cp_tradeoff_errors(X):
+    """Mean squared relative cp error below and above 500 K. X holds a1..a4; returns (..., 2)."""
+    rel2 = (X @ CUBIC_POWERS.T / CP_REF - 1.0) ** 2
+    return np.stack([rel2[..., LOW_T].mean(axis=-1), rel2[..., ~LOW_T].mean(axis=-1)], axis=-1)
+
+
+def cp_tradeoff_c3h8(X):
+    """log10 of cp_tradeoff_errors. The log spreads the front evenly and keeps the Pareto set."""
+    return np.log10(cp_tradeoff_errors(X))
+
+
+def cp_tradeoff_pareto_set(n_points=2000):
+    """Exact Pareto-optimal coefficients of cp_tradeoff_c3h8, shape (n_points, 4).
+
+    Both errors are convex quadratics in a1..a4, so every Pareto-optimal fit minimizes
+    w*f_low + (1-w)*f_high for some w in [0, 1]: a weighted linear least-squares problem.
+    """
+    scale = 1000.0 ** np.arange(4)  # solve with T/1000 for conditioning
+    A = CUBIC_POWERS / scale / CP_REF[:, None]
+    weights = np.concatenate([[0.0], 1.0 / (1.0 + 10.0 ** np.linspace(8, -8, n_points - 2)), [1.0]])
+    pareto_set = []
+    for w in weights:
+        row_weight = np.where(LOW_T, np.sqrt(w / LOW_T.sum()), np.sqrt((1.0 - w) / (~LOW_T).sum()))
+        b = np.linalg.lstsq(A * row_weight[:, None], row_weight, rcond=None)[0]
+        pareto_set.append(b / scale)
+    return np.array(pareto_set)

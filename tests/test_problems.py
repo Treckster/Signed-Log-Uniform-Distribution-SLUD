@@ -31,3 +31,18 @@ def test_cp_reference_is_physical():
     # propane cp/R between 200 K and 1000 K is positive and rising
     assert np.all(problems.CP_REF > 0)
     assert np.all(np.diff(problems.CP_REF) > 0)
+
+
+def test_cp_tradeoff_front_is_exact_and_conflicting():
+    pareto_set = problems.cp_tradeoff_pareto_set(200)
+    front = problems.cp_tradeoff_c3h8(pareto_set)
+    # sorted by f_low, the front must be strictly decreasing in f_high (a true trade-off)
+    order = np.argsort(front[:, 0])
+    assert np.all(np.diff(front[order, 1]) < 0)
+    # no random fit beats the front: each sample is dominated by some front point
+    X = pareto_set[100] * np.random.default_rng(0).uniform(0.9, 1.1, size=(500, 4))
+    F = problems.cp_tradeoff_c3h8(X)
+    dominated = np.all(front[None, :, :] <= F[:, None, :] + 1e-12, axis=2).any(axis=1)
+    assert dominated.all()
+    # the Pareto set crosses zero in a1 and a4: the case where the sign handling matters
+    assert np.ptp(np.sign(pareto_set[:, 0])) == 2 and np.ptp(np.sign(pareto_set[:, 3])) == 2
