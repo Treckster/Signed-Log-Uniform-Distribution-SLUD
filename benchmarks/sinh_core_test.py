@@ -1,12 +1,13 @@
 """NSGA-III test of the sinh core: PLAIN, LUD, SLUD, SINH, and SLUD/SINH with lb 1000x smaller.
 
-    uv run benchmarks/sinh_core_test.py --runs 11
+    uv run benchmarks/sinh_core_test.py --runs 21
 
 cp_tradeoff: exact front known; a1 and a4 change sign along it (zero crossings).
 kursawe:     pymoo classic, O(1) and its Pareto set passes through zero.
 """
 
 import argparse
+import csv
 import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
@@ -48,13 +49,14 @@ def run_job(job):
     objectives, lb, ub, max_gen, report = CASES[case]
     encoding, lb_factor = VARIANTS[variant]
     r = run_nsga3(objectives, encoding(lb * lb_factor, ub), n_obj=2, seed=seed, max_gen=max_gen)
-    return case, variant, [HV_RATIO[case](r["trace_F"][g]) for g in report]
+    return case, variant, seed, [HV_RATIO[case](r["trace_F"][g]) for g in report]
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--runs", type=int, default=11)
     parser.add_argument("--workers", type=int, default=os.cpu_count())
+    parser.add_argument("--out", default="results/sinh_core_test")
     args = parser.parse_args()
 
     jobs = [(c, v, s) for c in CASES for v in VARIANTS for s in range(args.runs)]
@@ -65,8 +67,20 @@ def main():
     for case, (_, _, _, _, report) in CASES.items():
         print(f"\n{case:12} {'':14} " + " ".join(f"{(g + 1) * 100:>22d}" for g in report) + "  evals")
         for v in VARIANTS:
-            hv = np.array([r[2] for r in results if r[0] == case and r[1] == v])
+            hv = np.array([r[3] for r in results if r[0] == case and r[1] == v])
             print(f"{'':12} {v:14} " + " ".join(f"{np.median(c):.3f} [{c.min():.3f}-{c.max():.3f}]".rjust(22) for c in hv.T))
+    save(results, args.out)
+
+
+def save(results, out):
+    """One row per run, final-budget HV ratio, with the encoding and lb factor as separate columns."""
+    os.makedirs(out, exist_ok=True)
+    with open(os.path.join(out, "runs.csv"), "w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["case", "variant", "encoding", "lb_factor", "seed", "hv_ratio"])
+        for case, variant, seed, hv in results:
+            encoding, lb_factor = VARIANTS[variant]
+            writer.writerow([case, variant, encoding.__name__, lb_factor, seed, hv[-1]])
 
 
 if __name__ == "__main__":
