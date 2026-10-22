@@ -1,6 +1,7 @@
 """Run one pymoo optimization on an encoded problem."""
 
 import numpy as np
+from pymoo.algorithms.moo.nsder import NSDER
 from pymoo.algorithms.moo.nsga3 import NSGA3
 from pymoo.algorithms.soo.nonconvex.cmaes import CMAES
 from pymoo.algorithms.soo.nonconvex.pso import PSO
@@ -123,10 +124,13 @@ class FrontSoFar(Callback):
         self.F.append(algorithm.opt.get("F")[algorithm.opt.get("feas")])
 
 
-def run_nsga3(objectives, encoding, n_obj, seed, n_partitions=99, max_gen=300):
+def run_nsga3(objectives, encoding, n_obj, seed, n_partitions=99, max_gen=300, de_cr=None):
     """NSGA-III with Das-Dennis reference directions; population size = number of directions.
 
     objectives is either a function of physical X or a pymoo Problem (constraints included).
+    de_cr=None: NSGA-III variation (SBX crossover + polynomial mutation, one variable at a time).
+    de_cr=0.7 or 1.0: NSDE-R, the same reference-direction selection with DE/rand/1/bin variation
+    at that crossover rate (1.0 makes the variation rotation invariant).
     """
     problem = (
         EncodedPymooProblem(objectives, encoding)
@@ -134,10 +138,15 @@ def run_nsga3(objectives, encoding, n_obj, seed, n_partitions=99, max_gen=300):
         else EncodedProblem(objectives, encoding, n_obj)
     )
     ref_dirs = get_reference_directions("das-dennis", n_obj, n_partitions=n_partitions)
+    algorithm = (
+        NSGA3(ref_dirs=ref_dirs, pop_size=len(ref_dirs))
+        if de_cr is None
+        else NSDER(ref_dirs=ref_dirs, pop_size=len(ref_dirs), CR=de_cr)
+    )
     trace = FrontSoFar()
     minimize(
         problem,
-        NSGA3(ref_dirs=ref_dirs, pop_size=len(ref_dirs)),
+        algorithm,
         get_termination("n_gen", max_gen),
         seed=seed,
         callback=trace,
